@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.26;
+pragma solidity ^0.8.19;
 
 library CodeDuelErrors {
-    
+
     uint8 constant GameRoomNotStarted = 11;
     uint8 constant GameRoomAlreadyStarted = 12;
     uint8 constant GameRoomLoadError = 13;
