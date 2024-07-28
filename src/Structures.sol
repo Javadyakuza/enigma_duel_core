@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.19;
+pragma solidity ^0.8.26;
 
-library Models {
+library Structures {
 
     enum GameRoomStatus {
         Active,
+        Finished,
         InActive
     }
     

@@ -1,13 +1,15 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.19;
+pragma solidity ^0.8.26;
 
-library CodeDuelErrors {
+library EnigmaDuelErrors {
 
-    uint8 constant GameRoomNotStarted = 11;
-    uint8 constant GameRoomAlreadyStarted = 12;
-    uint8 constant GameRoomLoadError = 13;
+    error GameRoomNotStarted ();
+    error GameRoomAlreadyStarted ();
+    error GameRoomDoesntExists ();
 
-    uint8 constant InsufficientBalance = 31;
+    error InsufficientBalance ();
+    error AddressZeroNotSupported ();
 
-    uint8 constant Unauthorized = 43;
+    error Unauthorized ();
+    error CollectingFeesFailed();
 }
