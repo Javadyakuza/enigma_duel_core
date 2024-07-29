@@ -237,19 +237,57 @@ contract EnigmaDuel is IEnigmaDuel, Ownable, AccessControl {
         }
     }
 
-    function increaseBalance(
-        uint256 increase_amount
-    ) external returns(uint256 _new_balance) {
-        
+    function depositEDT(
+        uint256 deposite_amount
+    ) external returns (uint256 _new_balance) {
         // transferring the tokens
-        require(IERC20(EDT).transferFrom(_msgSender(), address(this), increase_amount), EnigmaDuelErrors.DepositeFailed());
-        
-        // chenging the user state
+        require(
+            IERC20(EDT).transferFrom(
+                _msgSender(),
+                address(this),
+                deposite_amount
+            ),
+            EnigmaDuelErrors.DepositeFailed()
+        );
+
+        // changing the user state
         bool res;
-        (res, balances[_msgSender()].total) = balances[_msgSender()].total.tryAdd(increase_amount);
+        (res, balances[_msgSender()].total) = balances[_msgSender()]
+            .total
+            .tryAdd(deposite_amount);
         assert(res);
-        (res, balances[_msgSender()].available) = balances[_msgSender()].available.tryAdd(increase_amount);
+        (res, balances[_msgSender()].available) = balances[_msgSender()]
+            .available
+            .tryAdd(deposite_amount);
         assert(res);
+
+        _new_balance = balances[_msgSender()].available;
+    }
+
+    function withdrawEDT(
+        uint256 withdraw_amount
+    ) external returns (uint256 _new_balance) {
+        // cheking the balance of the user
+        require(
+            balances[_msgSender()].available >= withdraw_amount,
+            EnigmaDuelErrors.InsufficientBalance()
+        );
+
+        bool res;
+        (res, balances[_msgSender()].available) = balances[_msgSender()]
+            .available
+            .trySub(withdraw_amount);
+        assert(res);
+        (res, balances[_msgSender()].total) = balances[_msgSender()]
+            .total
+            .trySub(withdraw_amount);
+        assert(res);
+
+        // transferring the tokens
+        require(
+            IERC20(EDT).transfer(_msgSender(), withdraw_amount),
+            EnigmaDuelErrors.DepositeFailed()
+        );
 
         _new_balance = balances[_msgSender()].available;
     }
