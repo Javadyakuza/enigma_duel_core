@@ -24,13 +24,15 @@ library Structures {
     struct GameRoomResult {
         GameRoomResultStatus status;
         uint256 fee;
-        address winner; // zero if draw
+        address duelist1; // zero if draw
+        address duelist2; // zero if draw
         uint256 winnnerReceived;
         uint256 loserReceived;
     }
-    
+
     struct Balance {
         uint256 total;
+        uint256 locked;
         uint256 available;
     }
 }

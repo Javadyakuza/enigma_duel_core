@@ -10,7 +10,8 @@ interface IEnigmaDuel is Events {
     ) external returns (bytes32 _game_room_key);
 
     function finishGameRoom(
-        bytes32 _game_room_key
+        bytes32 _game_room_key, 
+        address _winner //  zero if draw
     ) external returns (Structures.GameRoomResult memory _game_room_result);
 
 }

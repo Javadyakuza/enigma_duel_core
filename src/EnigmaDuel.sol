@@ -17,16 +17,22 @@ contract EnigmaDuel is IEnigmaDuel, Ownable, AccessControl {
 
     address public EDT;
     uint256 public FEE;
-
+    uint256 public DRAW_FEE;
     bytes32 constant ADMIN_ROLE = bytes32("ADMIN");
     bytes32 constant OWNER_ROLE = bytes32("OWNER");
 
     mapping(address => Structures.Balance) public balances;
     mapping(bytes32 => Structures.GameRoom) private gameRooms;
 
-    constructor(address _edt, uint256 _fee) Ownable(_msgSender()) {
+    constructor(
+        address _edt,
+        uint256 _fee,
+        uint256 _draw_fee
+    ) Ownable(_msgSender()) {
         EDT = _edt;
         FEE = _fee;
+        DRAW_FEE = _draw_fee;
+
         _grantRole(OWNER_ROLE, msg.sender);
         _setRoleAdmin(ADMIN_ROLE, OWNER_ROLE);
     }
@@ -34,7 +40,7 @@ contract EnigmaDuel is IEnigmaDuel, Ownable, AccessControl {
     function WithdrawCollectedFees(
         uint256 _amount,
         address _dest
-    ) external onlyRole(ADMIN_ROLE) {
+    ) external onlyOwner {
         // checking the destination address
         require(
             _dest != address(0),
@@ -65,13 +71,12 @@ contract EnigmaDuel is IEnigmaDuel, Ownable, AccessControl {
     function startGameRoom(
         Structures.GameRoom calldata _game_room_init_params
     ) external onlyRole(ADMIN_ROLE) returns (bytes32 _game_room_key) {
-
         // fetching the minimum tokens required for the game
         uint256 min_required = EnigmaUtils.calc_min_required(
             _game_room_init_params.prizePool,
-            FEE
+            DRAW_FEE
         );
-        
+
         // chceking the minimum requried amount of dueslists for the game
         require(
             min_required <=
@@ -103,16 +108,134 @@ contract EnigmaDuel is IEnigmaDuel, Ownable, AccessControl {
         }
 
         // locking the balances
-        balances[_game_room_init_params.duelist1] = EnigmaUtils.balance_locker(balances[_game_room_init_params.duelist1], min_required);
-        balances[_game_room_init_params.duelist2] = EnigmaUtils.balance_locker(balances[_game_room_init_params.duelist2], min_required);
+        balances[_game_room_init_params.duelist1] = EnigmaUtils.balance_locker(
+            balances[_game_room_init_params.duelist1],
+            min_required
+        );
+        balances[_game_room_init_params.duelist2] = EnigmaUtils.balance_locker(
+            balances[_game_room_init_params.duelist2],
+            min_required
+        );
 
         // emitting the event
-        emit GameStarted(_game_room_init_params.duelist1, _game_room_init_params.duelist2, _game_room_init_params.prizePool);
+        emit GameStarted(
+            _game_room_init_params.duelist1,
+            _game_room_init_params.duelist2,
+            _game_room_init_params.prizePool
+        );
     }
 
     function finishGameRoom(
-        bytes32 _game_room_key
-    ) external onlyRole(ADMIN_ROLE) returns (Structures.GameRoomResult memory _game_room_result) {
+        bytes32 _game_room_key,
+        address winner
+    )
+        external
+        onlyRole(ADMIN_ROLE)
+        returns (Structures.GameRoomResult memory _game_room_result)
+    {
+        // fetching the game room data
+        // Structures.GameRoom memory old_gr = gameRooms[_game_room_key];
 
+        // checking status of the game room
+        if (winner == address(0)) {
+            // its draw
+
+            // calculating each user share from the prize pool
+            uint256 dueslists_share = EnigmaUtils.calc_min_required(
+                gameRooms[_game_room_key].prizePool,
+                DRAW_FEE
+            );
+
+            _game_room_result = Structures.GameRoomResult(
+                Structures.GameRoomResultStatus.Draw,
+                DRAW_FEE,
+                gameRooms[_game_room_key].duelist1,
+                gameRooms[_game_room_key].duelist2,
+                dueslists_share,
+                dueslists_share
+            );
+
+            // changing the status of the room
+            gameRooms[_game_room_key].status = Structures
+                .GameRoomStatus
+                .Finished;
+            gameRooms[_game_room_key].prizePool = 0;
+
+            // unlocking the balances
+            (
+                balances[owner()],
+                balances[_game_room_result.duelist1]
+            ) = EnigmaUtils.balance_unlocker(
+                balances[_game_room_result.duelist1],
+                balances[owner()],
+                dueslists_share,
+                false
+            );
+            (
+                balances[owner()],
+                balances[_game_room_result.duelist2]
+            ) = EnigmaUtils.balance_unlocker(
+                balances[_game_room_result.duelist2],
+                balances[owner()],
+                dueslists_share,
+                false
+            );
+        } else {
+            // it was a victory
+
+            // calculating each user share from the prize pool
+            uint256 dueslists_share = EnigmaUtils.calc_min_required(
+                gameRooms[_game_room_key].prizePool,
+                FEE
+            );
+
+            _game_room_result = Structures.GameRoomResult(
+                Structures.GameRoomResultStatus.Draw,
+                DRAW_FEE,
+                gameRooms[_game_room_key].duelist1,
+                gameRooms[_game_room_key].duelist2,
+                dueslists_share,
+                dueslists_share
+            );
+
+            // changing the status of the room
+            gameRooms[_game_room_key].status = Structures
+                .GameRoomStatus
+                .Finished;
+            gameRooms[_game_room_key].prizePool = 0;
+
+            // unlocking the balances
+            bool is_winner_1 = false;
+            bool is_winner_2 = false;
+            if (winner == _game_room_result.duelist1) {
+                is_winner_1 = true;
+            } else {
+                is_winner_2 = true;
+            }
+            (
+                balances[owner()],
+                balances[_game_room_result.duelist1]
+            ) = EnigmaUtils.balance_unlocker(
+                balances[_game_room_result.duelist1],
+                balances[owner()],
+                dueslists_share,
+                is_winner_1
+            );
+            (
+                balances[owner()],
+                balances[_game_room_result.duelist2]
+            ) = EnigmaUtils.balance_unlocker(
+                balances[_game_room_result.duelist2],
+                balances[owner()],
+                dueslists_share,
+                is_winner_2
+            );
+            emit GameFinished(
+                Structures.GameRoomResultStatus.Victory,
+                FEE,
+                winner,
+                dueslists_share
+            );
+        }
     }
 }
