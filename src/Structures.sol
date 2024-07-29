@@ -8,6 +8,11 @@ library Structures {
         Active
     }
 
+    enum GameRoomResultStatus {
+        Draw,
+        Victory
+    }
+
     /// Data structure for saving each game room
     struct GameRoom {
         address duelist1;
@@ -16,6 +21,14 @@ library Structures {
         GameRoomStatus status;
     }
 
+    struct GameRoomResult {
+        GameRoomResultStatus status;
+        uint256 fee;
+        address winner; // zero if draw
+        uint256 winnnerReceived;
+        uint256 loserReceived;
+    }
+    
     struct Balance {
         uint256 total;
         uint256 available;

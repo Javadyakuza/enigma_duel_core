@@ -5,9 +5,12 @@ import {Structures} from "./Structures.sol";
 import {Events} from "./Events.sol";
 
 interface IEnigmaDuel is Events {
-    function createGameRoom(
+    function startGameRoom(
         Structures.GameRoom calldata _game_room_init_params
     ) external returns (bytes32 _game_room_key);
 
-    function userBalance() external view returns(Structures.Balance memory _balance);
+    function finishGameRoom(
+        bytes32 _game_room_key
+    ) external returns (Structures.GameRoomResult memory _game_room_result);
+
 }

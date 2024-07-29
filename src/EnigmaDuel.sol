@@ -48,7 +48,9 @@ contract EnigmaDuel is IEnigmaDuel, Ownable, AccessControl {
         );
 
         // decreasing the balance
-        (, balances[_msgSender()].total) = balances[_msgSender()].total.trySub(_amount);
+        (, balances[_msgSender()].total) = balances[_msgSender()].total.trySub(
+            _amount
+        );
 
         // trasferring
         require(
@@ -60,49 +62,57 @@ contract EnigmaDuel is IEnigmaDuel, Ownable, AccessControl {
         emit FeesCollected(_amount, _dest);
     }
 
-    function createGameRoom(
+    function startGameRoom(
         Structures.GameRoom calldata _game_room_init_params
     ) external onlyRole(ADMIN_ROLE) returns (bytes32 _game_room_key) {
+
+        // fetching the minimum tokens required for the game
+        uint256 min_required = EnigmaUtils.calc_min_required(
+            _game_room_init_params.prizePool,
+            FEE
+        );
+        
         // chceking the minimum requried amount of dueslists for the game
         require(
-            EnigmaUtils.calc_min_required(
-                _game_room_init_params.prizePool,
-                balances[_game_room_init_params.duelist1].available,
-                FEE
-            ) &&
-                EnigmaUtils.calc_min_required(
-                    _game_room_init_params.prizePool,
-                    balances[_game_room_init_params.duelist2].available,
-                    FEE
-                ),
+            min_required <=
+                balances[_game_room_init_params.duelist1].available &&
+                min_required <=
+                balances[_game_room_init_params.duelist2].available,
             EnigmaDuelErrors.InsufficientBalance()
         );
 
         // generating the game room key
-        _game_room_key = EnigmaUtils.gen_game_key(_game_room_init_params.duelist1, _game_room_init_params.duelist1);
+        _game_room_key = EnigmaUtils.gen_game_key(
+            _game_room_init_params.duelist1,
+            _game_room_init_params.duelist1
+        );
 
         // checking the status of the game room
         Structures.GameRoom memory old_data = gameRooms[_game_room_key];
 
-        if(old_data.status != Structures.GameRoomStatus.InActive) {
+        if (old_data.status != Structures.GameRoomStatus.InActive) {
             // game room not inited
             gameRooms[_game_room_key] = _game_room_init_params;
-
         } else if (old_data.status != Structures.GameRoomStatus.InActive) {
             // game room inited
             gameRooms[_game_room_key].status = Structures.GameRoomStatus.Active;
-            gameRooms[_game_room_key].prizePool = _game_room_init_params.prizePool;            
+            gameRooms[_game_room_key].prizePool = _game_room_init_params
+                .prizePool;
         } else {
             revert EnigmaDuelErrors.GameRoomAlreadyStarted();
         }
 
         // locking the balances
-        // balances[_game_room_init_params.duelist1] = EnigmaUtils.balance_locker(balances[_game_room_init_params.duelist1]);
+        balances[_game_room_init_params.duelist1] = EnigmaUtils.balance_locker(balances[_game_room_init_params.duelist1], min_required);
+        balances[_game_room_init_params.duelist2] = EnigmaUtils.balance_locker(balances[_game_room_init_params.duelist2], min_required);
 
+        // emitting the event
+        emit GameStarted(_game_room_init_params.duelist1, _game_room_init_params.duelist2, _game_room_init_params.prizePool);
     }
 
-    function userBalance() public view returns(Structures.Balance memory _balance){
-        _balance = balances[_msgSender()];
-    }
+    function finishGameRoom(
+        bytes32 _game_room_key
+    ) external onlyRole(ADMIN_ROLE) returns (Structures.GameRoomResult memory _game_room_result) {
 
+    }
 }
