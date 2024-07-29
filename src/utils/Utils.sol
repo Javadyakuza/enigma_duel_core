@@ -16,11 +16,11 @@ library EnigmaUtils {
         bool res;
         uint256 subbed;
         (res, _fee) = _fee.tryMul(2);
-        require(res, EnigmaDuelErrors.underflow());
+        require(res, EnigmaDuelErrors.Underflow());
         (res, subbed) = _prize_pool.trySub(_fee);
-        require(res, EnigmaDuelErrors.underflow());
+        require(res, EnigmaDuelErrors.Underflow());
         (res, _min_required) = subbed.tryDiv(2);
-        require(res, EnigmaDuelErrors.underflow());
+        require(res, EnigmaDuelErrors.Underflow());
     }
 
     function gen_game_room_key(
@@ -37,9 +37,9 @@ library EnigmaUtils {
         _new_balance = _balance;
         bool res;
         (res, _new_balance.available) = _balance.available.trySub(_lock_amount);
-        require(res, EnigmaDuelErrors.underflow()); // impossible assert
+        require(res, EnigmaDuelErrors.Underflow()); // impossible assert
         (res, _new_balance.locked) = _balance.locked.tryAdd(_lock_amount);
-        require(res, EnigmaDuelErrors.underflow());
+        require(res, EnigmaDuelErrors.Overflow());
     }
 
     function balance_unlocker(
@@ -62,28 +62,28 @@ library EnigmaUtils {
         if (is_winner) {
             uint256 winner_share;
             (res, winner_share) = _unlock_amount.tryMul(2);
-            require(res, EnigmaDuelErrors.underflow());
+            require(res, EnigmaDuelErrors.Overflow());
             (res, _new_balance.available) = _balance.available.tryAdd(
                 winner_share
             );
-            require(res, EnigmaDuelErrors.underflow());
+            require(res, EnigmaDuelErrors.Overflow());
             (res, _new_balance.total) = _balance.total.tryAdd(_unlock_amount);
-            require(res, EnigmaDuelErrors.underflow());
+            require(res, EnigmaDuelErrors.Overflow());
         } else {
             (res, _new_balance.available) = _balance.available.tryAdd(
                 _unlock_amount
             );
-            require(res, EnigmaDuelErrors.underflow());
+            require(res, EnigmaDuelErrors.Overflow());
         }
 
         (res, _new_balance.locked) = _balance.locked.trySub(_unlock_amount);
-        require(res, EnigmaDuelErrors.underflow());
+        require(res, EnigmaDuelErrors.Underflow());
         if (_new_balance.locked != 0) {
             // it was not draw
             (res, _new_admin_balance.total) = _new_admin_balance.total.tryAdd(
                 _new_balance.locked
             );
-            require(res, EnigmaDuelErrors.underflow());
+            require(res, EnigmaDuelErrors.Overflow());
             _new_balance.locked = 0;
         }
     }

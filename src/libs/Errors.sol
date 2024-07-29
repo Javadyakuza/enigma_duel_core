@@ -15,6 +15,6 @@ library EnigmaDuelErrors {
     error CollectingFeesFailed();
 
     error Overflow();
-    error Undeflow();
-    
+    error Underflow();
+
 }

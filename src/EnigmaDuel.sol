@@ -55,7 +55,7 @@ contract EnigmaDuel is IEnigmaDuel, Ownable, AccessControl {
         (res, balances[_msgSender()].total) = balances[_msgSender()].total.trySub(
             _amount
         );
-        require(res, EnigmaDuelErrors.underflow());
+        require(res, EnigmaDuelErrors.Underflow());
 
         // trasferring
         require(
@@ -256,11 +256,11 @@ contract EnigmaDuel is IEnigmaDuel, Ownable, AccessControl {
         (res, balances[_msgSender()].total) = balances[_msgSender()]
             .total
             .tryAdd(deposite_amount);
-        require(res, EnigmaDuelErrors.underflow());
+        require(res, EnigmaDuelErrors.Overflow());
         (res, balances[_msgSender()].available) = balances[_msgSender()]
             .available
             .tryAdd(deposite_amount);
-        require(res, EnigmaDuelErrors.underflow());
+        require(res, EnigmaDuelErrors.Overflow());
 
         _new_balance = balances[_msgSender()].available;
     }
@@ -278,11 +278,11 @@ contract EnigmaDuel is IEnigmaDuel, Ownable, AccessControl {
         (res, balances[_msgSender()].available) = balances[_msgSender()]
             .available
             .trySub(withdraw_amount);
-        require(res, EnigmaDuelErrors.underflow());
+        require(res, EnigmaDuelErrors.Underflow());
         (res, balances[_msgSender()].total) = balances[_msgSender()]
             .total
             .trySub(withdraw_amount);
-        require(res, EnigmaDuelErrors.underflow());
+        require(res, EnigmaDuelErrors.Underflow());
 
         // transferring the tokens
         require(
