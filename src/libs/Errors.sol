@@ -13,4 +13,8 @@ library EnigmaDuelErrors {
 
     error Unauthorized ();
     error CollectingFeesFailed();
+
+    error Overflow();
+    error Undeflow();
+    
 }

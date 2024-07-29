@@ -55,8 +55,8 @@ contract EnigmaDuel is IEnigmaDuel, Ownable, AccessControl {
         (res, balances[_msgSender()].total) = balances[_msgSender()].total.trySub(
             _amount
         );
-        assert(res);
-        
+        require(res, EnigmaDuelErrors.underflow());
+
         // trasferring
         require(
             IERC20(EDT).transfer(_dest, _amount),
@@ -256,11 +256,11 @@ contract EnigmaDuel is IEnigmaDuel, Ownable, AccessControl {
         (res, balances[_msgSender()].total) = balances[_msgSender()]
             .total
             .tryAdd(deposite_amount);
-        assert(res);
+        require(res, EnigmaDuelErrors.underflow());
         (res, balances[_msgSender()].available) = balances[_msgSender()]
             .available
             .tryAdd(deposite_amount);
-        assert(res);
+        require(res, EnigmaDuelErrors.underflow());
 
         _new_balance = balances[_msgSender()].available;
     }
@@ -278,11 +278,11 @@ contract EnigmaDuel is IEnigmaDuel, Ownable, AccessControl {
         (res, balances[_msgSender()].available) = balances[_msgSender()]
             .available
             .trySub(withdraw_amount);
-        assert(res);
+        require(res, EnigmaDuelErrors.underflow());
         (res, balances[_msgSender()].total) = balances[_msgSender()]
             .total
             .trySub(withdraw_amount);
-        assert(res);
+        require(res, EnigmaDuelErrors.underflow());
 
         // transferring the tokens
         require(
