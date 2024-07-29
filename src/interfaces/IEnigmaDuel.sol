@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.26;
 
-import {Structures} from "./Structures.sol";
+import {Structures} from "../libs/Structures.sol";
 import {Events} from "./Events.sol";
 
 interface IEnigmaDuel is Events {

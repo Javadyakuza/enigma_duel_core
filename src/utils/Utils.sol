@@ -2,8 +2,8 @@
 pragma solidity ^0.8.26;
 
 import {Math} from "@openzeppelin-contracts/utils/math/Math.sol";
-import {EnigmaDuelErrors} from "./Errors.sol";
-import {Structures} from "./Structures.sol";
+import {EnigmaDuelErrors} from "../libs/Errors.sol";
+import {Structures} from "../libs/Structures.sol";
 
 library EnigmaUtils {
     using Math for uint256;

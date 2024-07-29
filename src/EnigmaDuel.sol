@@ -4,11 +4,11 @@ pragma solidity ^0.8.26;
 import {IERC20} from "@openzeppelin-contracts/token/ERC20/IERC20.sol";
 import {Ownable} from "@openzeppelin-contracts/access/Ownable.sol";
 import {AccessControl} from "@openzeppelin-contracts/access/AccessControl.sol";
-import {EnigmaDuelErrors} from "./Errors.sol";
-import {IEnigmaDuel} from "./IEnigmaDuel.sol";
+import {EnigmaDuelErrors} from "./libs/Errors.sol";
+import {IEnigmaDuel} from "./interfaces/IEnigmaDuel.sol";
 import {Math} from "@openzeppelin-contracts/utils/math/Math.sol";
-import {Structures} from "./Structures.sol";
-import {EnigmaUtils} from "./Utils.sol";
+import {Structures} from "./libs/Structures.sol";
+import {EnigmaUtils} from "./utils/Utils.sol";
 
 contract EnigmaDuel is IEnigmaDuel, Ownable, AccessControl {
     using Math for uint256;
