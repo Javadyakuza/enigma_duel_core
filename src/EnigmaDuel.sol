@@ -50,12 +50,13 @@ contract EnigmaDuel is IEnigmaDuel, Ownable, AccessControl {
             balances[_msgSender()].available <= _amount,
             EnigmaDuelErrors.InsufficientBalance()
         );
-
+        bool res;
         // decreasing the balance
-        (, balances[_msgSender()].total) = balances[_msgSender()].total.trySub(
+        (res, balances[_msgSender()].total) = balances[_msgSender()].total.trySub(
             _amount
         );
-
+        assert(res);
+        
         // trasferring
         require(
             IERC20(EDT).transfer(_dest, _amount),

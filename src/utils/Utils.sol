@@ -13,9 +13,14 @@ library EnigmaUtils {
         uint256 _fee
     ) internal pure returns (uint256 _min_required) {
         assert(_prize_pool >= _fee);
-        (, _fee) = _fee.tryMul(2);
-        (, uint256 subbed) = _prize_pool.trySub(_fee);
-        (, _min_required) = subbed.tryDiv(2);
+        bool res;
+        uint256 subbed;
+        (res, _fee) = _fee.tryMul(2);
+        assert(res);
+        (res, subbed) = _prize_pool.trySub(_fee);
+        assert(res);
+        (res, _min_required) = subbed.tryDiv(2);
+        assert(res);
     }
 
     function gen_game_room_key(
@@ -68,6 +73,7 @@ library EnigmaUtils {
             (res, _new_balance.available) = _balance.available.tryAdd(
                 _unlock_amount
             );
+            assert(res);
         }
 
         (res, _new_balance.locked) = _balance.locked.trySub(_unlock_amount);
