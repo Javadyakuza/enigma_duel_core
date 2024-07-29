@@ -2,18 +2,22 @@
 pragma solidity ^0.8.26;
 
 library Structures {
-
     enum GameRoomStatus {
-        Active,
+        InActive,
         Finished,
-        InActive
+        Active
     }
-    
+
     /// Data structure for saving each game room
     struct GameRoom {
         address duelist1;
         address duelist2;
         uint256 prizePool;
         GameRoomStatus status;
+    }
+
+    struct Balance {
+        uint256 total;
+        uint256 available;
     }
 }
