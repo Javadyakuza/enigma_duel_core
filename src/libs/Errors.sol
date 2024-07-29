@@ -9,6 +9,7 @@ library EnigmaDuelErrors {
 
     error InsufficientBalance ();
     error AddressZeroNotSupported ();
+    error DepositeFailed ();
 
     error Unauthorized ();
     error CollectingFeesFailed();

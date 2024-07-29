@@ -18,11 +18,11 @@ library EnigmaUtils {
         (, _min_required) = subbed.tryDiv(2);
     }
 
-    function gen_game_key(
+    function gen_game_room_key(
         address _duelist1,
         address _duelist2
-    ) internal pure returns (bytes32 _game_key) {
-        _game_key = keccak256(abi.encode(_duelist1, _duelist2));
+    ) internal pure returns (bytes32 _game_room_key) {
+        _game_room_key = keccak256(abi.encode(_duelist1, _duelist2));
     }
 
     function balance_locker(

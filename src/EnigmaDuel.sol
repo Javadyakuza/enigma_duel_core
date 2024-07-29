@@ -13,8 +13,6 @@ import {EnigmaUtils} from "./utils/Utils.sol";
 contract EnigmaDuel is IEnigmaDuel, Ownable, AccessControl {
     using Math for uint256;
 
-    // fee and token of the platform
-
     address public EDT;
     uint256 public FEE;
     uint256 public DRAW_FEE;
@@ -87,7 +85,7 @@ contract EnigmaDuel is IEnigmaDuel, Ownable, AccessControl {
         );
 
         // generating the game room key
-        _game_room_key = EnigmaUtils.gen_game_key(
+        _game_room_key = EnigmaUtils.gen_game_room_key(
             _game_room_init_params.duelist1,
             _game_room_init_params.duelist1
         );
@@ -237,5 +235,22 @@ contract EnigmaDuel is IEnigmaDuel, Ownable, AccessControl {
                 dueslists_share
             );
         }
+    }
+
+    function increaseBalance(
+        uint256 increase_amount
+    ) external returns(uint256 _new_balance) {
+        
+        // transferring the tokens
+        require(IERC20(EDT).transferFrom(_msgSender(), address(this), increase_amount), EnigmaDuelErrors.DepositeFailed());
+        
+        // chenging the user state
+        bool res;
+        (res, balances[_msgSender()].total) = balances[_msgSender()].total.tryAdd(increase_amount);
+        assert(res);
+        (res, balances[_msgSender()].available) = balances[_msgSender()].available.tryAdd(increase_amount);
+        assert(res);
+
+        _new_balance = balances[_msgSender()].available;
     }
 }
