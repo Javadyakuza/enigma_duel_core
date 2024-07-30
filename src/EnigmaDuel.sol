@@ -2,15 +2,19 @@
 pragma solidity ^0.8.26;
 
 import {IERC20} from "@openzeppelin-contracts/token/ERC20/IERC20.sol";
-import {SafeERC20} from "@openzeppelin-contracts/token/ERC20/utils/SafeERC20.sol";
 import {Ownable} from "@openzeppelin-contracts/access/Ownable.sol";
 import {AccessControl} from "@openzeppelin-contracts/access/AccessControl.sol";
+import {SafeERC20} from "@openzeppelin-contracts/token/ERC20/utils/SafeERC20.sol";
 import {EnigmaDuelErrors} from "./libs/Errors.sol";
 import {IEnigmaDuel} from "./interfaces/IEnigmaDuel.sol";
 import {Math} from "@openzeppelin-contracts/utils/math/Math.sol";
 import {Structures} from "./libs/Structures.sol";
 import {EnigmaUtils} from "./utils/Utils.sol";
 
+/**
+ * @title EnigmaDuel
+ * @dev A contract for managing duels, handling fees, and tracking balances in the Enigma Duel game.
+ */
 contract EnigmaDuel is IEnigmaDuel, Ownable, AccessControl {
     using SafeERC20 for IERC20;
     using Math for uint256;
@@ -18,12 +22,18 @@ contract EnigmaDuel is IEnigmaDuel, Ownable, AccessControl {
     address public EDT;
     uint256 public FEE;
     uint256 public DRAW_FEE;
-    bytes32 constant ADMIN_ROLE = bytes32("ADMIN");
-    bytes32 constant OWNER_ROLE = bytes32("OWNER");
+    bytes32 public constant ADMIN_ROLE = keccak256("ADMIN");
+    bytes32 public constant OWNER_ROLE = keccak256("OWNER");
 
     mapping(address => Structures.Balance) public balances;
     mapping(bytes32 => Structures.GameRoom) private gameRooms;
 
+    /**
+     * @dev Sets the initial values for the contract.
+     * @param _edt Address of the EDT token contract.
+     * @param _fee Fee for the game in victory status.
+     * @param _draw_fee Fee for tha game in draw status.
+     */
     constructor(
         address _edt,
         uint256 _fee,
@@ -37,45 +47,45 @@ contract EnigmaDuel is IEnigmaDuel, Ownable, AccessControl {
         _setRoleAdmin(ADMIN_ROLE, OWNER_ROLE);
     }
 
-    function WithdrawCollectedFees(
+    /**
+     * @dev Withdraws collected fees to a specified address.
+     * @param _amount Amount to withdraw.
+     * @param _dest Destination address to receive the funds.
+     */
+    function withdrawCollectedFees(
         uint256 _amount,
         address _dest
     ) external onlyOwner {
-        // checking the destination address
         require(
             _dest != address(0),
             EnigmaDuelErrors.AddressZeroNotSupported()
         );
-
-        // checking the requested withdraw amount
         require(
-            balances[_msgSender()].available <= _amount,
+            balances[_msgSender()].available >= _amount,
             EnigmaDuelErrors.InsufficientBalance()
         );
-        bool res;
-        // decreasing the balance
-        (res, balances[_msgSender()].total) = balances[_msgSender()]
-            .total
-            .trySub(_amount);
-        require(res, EnigmaDuelErrors.Underflow());
 
-        // trasferring
+        balances[_msgSender()].available -= _amount;
+        balances[_msgSender()].total -= _amount;
+
         IERC20(EDT).safeTransfer(_dest, _amount);
 
-        // emitting the event
         emit FeesCollected(_amount, _dest);
     }
 
+    /**
+     * @dev Starts a new game room with specified parameters.
+     * @param _game_room_init_params Parameters to initialize the game room.
+     * @return _game_room_key The key for the newly created game room.
+     */
     function startGameRoom(
         Structures.GameRoom calldata _game_room_init_params
     ) external onlyRole(ADMIN_ROLE) returns (bytes32 _game_room_key) {
-        // fetching the minimum tokens required for the game
         uint256 min_required = EnigmaUtils.calc_min_required(
             _game_room_init_params.prizePool,
             DRAW_FEE
         );
 
-        // chceking the minimum requried amount of dueslists for the game
         require(
             min_required <=
                 balances[_game_room_init_params.duelist1].available &&
@@ -84,28 +94,21 @@ contract EnigmaDuel is IEnigmaDuel, Ownable, AccessControl {
             EnigmaDuelErrors.InsufficientBalance()
         );
 
-        // generating the game room key
         _game_room_key = EnigmaUtils.gen_game_room_key(
             _game_room_init_params.duelist1,
-            _game_room_init_params.duelist1
+            _game_room_init_params.duelist2
         );
 
-        // checking the status of the game room
-        Structures.GameRoom memory old_data = gameRooms[_game_room_key];
+        
 
-        if (old_data.status != Structures.GameRoomStatus.InActive) {
-            // game room not inited
-            gameRooms[_game_room_key] = _game_room_init_params;
-        } else if (old_data.status != Structures.GameRoomStatus.InActive) {
-            // game room inited
-            gameRooms[_game_room_key].status = Structures.GameRoomStatus.Active;
-            gameRooms[_game_room_key].prizePool = _game_room_init_params
-                .prizePool;
-        } else {
-            revert EnigmaDuelErrors.GameRoomAlreadyStarted();
-        }
+        require(
+            gameRooms[_game_room_key].status == Structures.GameRoomStatus.InActive,
+            EnigmaDuelErrors.InvalidGameRoomStatus()
+        );
 
-        // locking the balances
+        gameRooms[_game_room_key] = _game_room_init_params;
+        gameRooms[_game_room_key].status = Structures.GameRoomStatus.Active;
+
         balances[_game_room_init_params.duelist1] = EnigmaUtils.balance_locker(
             balances[_game_room_init_params.duelist1],
             min_required
@@ -115,7 +118,6 @@ contract EnigmaDuel is IEnigmaDuel, Ownable, AccessControl {
             min_required
         );
 
-        // emitting the event
         emit GameStarted(
             _game_room_init_params.duelist1,
             _game_room_init_params.duelist2,
@@ -123,6 +125,12 @@ contract EnigmaDuel is IEnigmaDuel, Ownable, AccessControl {
         );
     }
 
+    /**
+     * @dev Finishes a game room and determines the result.
+     * @param _game_room_key The key of the game room to finish.
+     * @param winner The address of the winner, or address(0) if it's a draw.
+     * @return _game_room_result The result of the game room.
+     */
     function finishGameRoom(
         bytes32 _game_room_key,
         address winner
@@ -131,155 +139,94 @@ contract EnigmaDuel is IEnigmaDuel, Ownable, AccessControl {
         onlyRole(ADMIN_ROLE)
         returns (Structures.GameRoomResult memory _game_room_result)
     {
-        // fetching the game room data
-        // Structures.GameRoom memory old_gr = gameRooms[_game_room_key];
+        Structures.GameRoom storage gameRoom = gameRooms[_game_room_key];
+        require(
+            gameRoom.status == Structures.GameRoomStatus.Active,
+            EnigmaDuelErrors.InvalidGameRoomStatus()
+        );
 
-        // checking status of the game room
-        if (winner == address(0)) {
-            // its draw
+        uint256 fee = winner == address(0) ? DRAW_FEE : FEE;
+        uint256 prizeShare = EnigmaUtils.calc_min_required(gameRoom.prizePool, fee);
 
-            // calculating each user share from the prize pool
-            uint256 dueslists_share = EnigmaUtils.calc_min_required(
-                gameRooms[_game_room_key].prizePool,
-                DRAW_FEE
-            );
+        _game_room_result = Structures.GameRoomResult(
+            winner == address(0) ? Structures.GameRoomResultStatus.Draw : Structures.GameRoomResultStatus.Victory,
+            fee,
+            gameRoom.duelist1,
+            gameRoom.duelist2,
+            prizeShare,
+            prizeShare
+        );
 
-            _game_room_result = Structures.GameRoomResult(
-                Structures.GameRoomResultStatus.Draw,
-                DRAW_FEE,
-                gameRooms[_game_room_key].duelist1,
-                gameRooms[_game_room_key].duelist2,
-                dueslists_share,
-                dueslists_share
-            );
+        gameRoom.status = Structures.GameRoomStatus.Finished;
+        gameRoom.prizePool = 0;
 
-            // changing the status of the room
-            gameRooms[_game_room_key].status = Structures
-                .GameRoomStatus
-                .Finished;
-            gameRooms[_game_room_key].prizePool = 0;
+        bool isWinner1 = winner == gameRoom.duelist1;
+        bool isWinner2 = winner == gameRoom.duelist2;
 
-            // unlocking the balances
-            (
-                balances[owner()],
-                balances[_game_room_result.duelist1]
-            ) = EnigmaUtils.balance_unlocker(
-                balances[_game_room_result.duelist1],
-                balances[owner()],
-                dueslists_share,
-                false
-            );
-            (
-                balances[owner()],
-                balances[_game_room_result.duelist2]
-            ) = EnigmaUtils.balance_unlocker(
-                balances[_game_room_result.duelist2],
-                balances[owner()],
-                dueslists_share,
-                false
-            );
-        } else {
-            // it was a victory
+        (
+            balances[owner()],
+            balances[gameRoom.duelist1]
+        ) = EnigmaUtils.balance_unlocker(
+            balances[gameRoom.duelist1],
+            balances[owner()],
+            prizeShare,
+            isWinner1
+        );
 
-            // calculating each user share from the prize pool
-            uint256 dueslists_share = EnigmaUtils.calc_min_required(
-                gameRooms[_game_room_key].prizePool,
-                FEE
-            );
+        (
+            balances[owner()],
+            balances[gameRoom.duelist2]
+        ) = EnigmaUtils.balance_unlocker(
+            balances[gameRoom.duelist2],
+            balances[owner()],
+            prizeShare,
+            isWinner2
+        );
 
-            _game_room_result = Structures.GameRoomResult(
-                Structures.GameRoomResultStatus.Draw,
-                DRAW_FEE,
-                gameRooms[_game_room_key].duelist1,
-                gameRooms[_game_room_key].duelist2,
-                dueslists_share,
-                dueslists_share
-            );
-
-            // changing the status of the room
-            gameRooms[_game_room_key].status = Structures
-                .GameRoomStatus
-                .Finished;
-            gameRooms[_game_room_key].prizePool = 0;
-
-            // unlocking the balances
-            bool is_winner_1 = false;
-            bool is_winner_2 = false;
-            if (winner == _game_room_result.duelist1) {
-                is_winner_1 = true;
-            } else {
-                is_winner_2 = true;
-            }
-            (
-                balances[owner()],
-                balances[_game_room_result.duelist1]
-            ) = EnigmaUtils.balance_unlocker(
-                balances[_game_room_result.duelist1],
-                balances[owner()],
-                dueslists_share,
-                is_winner_1
-            );
-            (
-                balances[owner()],
-                balances[_game_room_result.duelist2]
-            ) = EnigmaUtils.balance_unlocker(
-                balances[_game_room_result.duelist2],
-                balances[owner()],
-                dueslists_share,
-                is_winner_2
-            );
-            emit GameFinished(
-                Structures.GameRoomResultStatus.Victory,
-                FEE,
-                winner,
-                dueslists_share
-            );
-        }
+        emit GameFinished(
+            winner == address(0) ? Structures.GameRoomResultStatus.Draw : Structures.GameRoomResultStatus.Victory,
+            fee,
+            winner,
+            prizeShare
+        );
     }
 
+    /**
+     * @dev Deposits EDT tokens into the contract.
+     * @param deposit_amount The amount of EDT tokens to deposit.
+     * @return _new_balance The new balance of the user.
+     */
     function depositEDT(
-        uint256 deposite_amount
+        uint256 deposit_amount
     ) external returns (uint256 _new_balance) {
-        // transferring the tokens
         IERC20(EDT).safeTransferFrom(
             _msgSender(),
             address(this),
-            deposite_amount
+            deposit_amount
         );
-        // changing the user state
-        bool res;
-        (res, balances[_msgSender()].total) = balances[_msgSender()]
-            .total
-            .tryAdd(deposite_amount);
-        require(res, EnigmaDuelErrors.Overflow());
-        (res, balances[_msgSender()].available) = balances[_msgSender()]
-            .available
-            .tryAdd(deposite_amount);
-        require(res, EnigmaDuelErrors.Overflow());
+
+        balances[_msgSender()].total += deposit_amount;
+        balances[_msgSender()].available += deposit_amount;
 
         _new_balance = balances[_msgSender()].available;
     }
 
+    /**
+     * @dev Withdraws EDT tokens from the contract.
+     * @param withdraw_amount The amount of EDT tokens to withdraw.
+     * @return _new_balance The new balance of the user.
+     */
     function withdrawEDT(
         uint256 withdraw_amount
     ) external returns (uint256 _new_balance) {
-        // cheking the balance of the user
         require(
             balances[_msgSender()].available >= withdraw_amount,
             EnigmaDuelErrors.InsufficientBalance()
         );
 
-        bool res;
-        (res, balances[_msgSender()].available) = balances[_msgSender()]
-            .available
-            .trySub(withdraw_amount);
-        require(res, EnigmaDuelErrors.Underflow());
-        (res, balances[_msgSender()].total) = balances[_msgSender()]
-            .total
-            .trySub(withdraw_amount);
-        require(res, EnigmaDuelErrors.Underflow());
+        balances[_msgSender()].available -= withdraw_amount;
+        balances[_msgSender()].total -= withdraw_amount;
 
-        // transferring the tokens
         IERC20(EDT).safeTransfer(_msgSender(), withdraw_amount);
 
         _new_balance = balances[_msgSender()].available;
