@@ -3,9 +3,7 @@ pragma solidity ^0.8.26;
 
 library EnigmaDuelErrors {
 
-    error GameRoomNotStarted ();
     error InvalidGameRoomStatus ();
-    error GameRoomDoesntExists ();
 
     error InsufficientBalance ();
     error AddressZeroNotSupported ();

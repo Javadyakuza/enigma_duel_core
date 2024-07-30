@@ -65,7 +65,6 @@ contract EnigmaDuel is IEnigmaDuel, Ownable, AccessControl {
             EnigmaDuelErrors.InsufficientBalance()
         );
 
-        balances[_msgSender()].available -= _amount;
         balances[_msgSender()].total -= _amount;
 
         IERC20(EDT).safeTransfer(_dest, _amount);
@@ -102,13 +101,13 @@ contract EnigmaDuel is IEnigmaDuel, Ownable, AccessControl {
         
 
         require(
-            gameRooms[_game_room_key].status == Structures.GameRoomStatus.InActive,
+            gameRooms[_game_room_key].status != Structures.GameRoomStatus.Active,
             EnigmaDuelErrors.InvalidGameRoomStatus()
         );
 
         gameRooms[_game_room_key] = _game_room_init_params;
         gameRooms[_game_room_key].status = Structures.GameRoomStatus.Active;
-
+        
         balances[_game_room_init_params.duelist1] = EnigmaUtils.balance_locker(
             balances[_game_room_init_params.duelist1],
             min_required
@@ -128,12 +127,12 @@ contract EnigmaDuel is IEnigmaDuel, Ownable, AccessControl {
     /**
      * @dev Finishes a game room and determines the result.
      * @param _game_room_key The key of the game room to finish.
-     * @param winner The address of the winner, or address(0) if it's a draw.
+     * @param _winner The address of the winner, or address(0) if it's a draw.
      * @return _game_room_result The result of the game room.
      */
     function finishGameRoom(
         bytes32 _game_room_key,
-        address winner
+        address _winner
     )
         external
         onlyRole(ADMIN_ROLE)
@@ -145,11 +144,11 @@ contract EnigmaDuel is IEnigmaDuel, Ownable, AccessControl {
             EnigmaDuelErrors.InvalidGameRoomStatus()
         );
 
-        uint256 fee = winner == address(0) ? DRAW_FEE : FEE;
+        uint256 fee = _winner == address(0) ? DRAW_FEE : FEE;
         uint256 prizeShare = EnigmaUtils.calc_min_required(gameRoom.prizePool, fee);
 
         _game_room_result = Structures.GameRoomResult(
-            winner == address(0) ? Structures.GameRoomResultStatus.Draw : Structures.GameRoomResultStatus.Victory,
+            _winner == address(0) ? Structures.GameRoomResultStatus.Draw : Structures.GameRoomResultStatus.Victory,
             fee,
             gameRoom.duelist1,
             gameRoom.duelist2,
@@ -160,8 +159,8 @@ contract EnigmaDuel is IEnigmaDuel, Ownable, AccessControl {
         gameRoom.status = Structures.GameRoomStatus.Finished;
         gameRoom.prizePool = 0;
 
-        bool isWinner1 = winner == gameRoom.duelist1;
-        bool isWinner2 = winner == gameRoom.duelist2;
+        bool isWinner1 = _winner == gameRoom.duelist1;
+        bool isWinner2 = _winner == gameRoom.duelist2;
 
         (
             balances[owner()],
@@ -184,9 +183,9 @@ contract EnigmaDuel is IEnigmaDuel, Ownable, AccessControl {
         );
 
         emit GameFinished(
-            winner == address(0) ? Structures.GameRoomResultStatus.Draw : Structures.GameRoomResultStatus.Victory,
+            _winner == address(0) ? Structures.GameRoomResultStatus.Draw : Structures.GameRoomResultStatus.Victory,
             fee,
-            winner,
+            _winner,
             prizeShare
         );
     }
