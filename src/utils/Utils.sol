@@ -8,21 +8,28 @@ import {Structures} from "../libs/Structures.sol";
 library EnigmaUtils {
     using Math for uint256;
 
+    /**
+     * @dev Calculates the minimum required balance based on prize pool and fee.
+     * @param _prize_pool The total prize pool for the game.
+     * @param _fee The fee to be deducted from the prize pool.
+     * @return _min_required The minimum required balance for each duelist.
+     */
     function calc_min_required(
         uint256 _prize_pool,
         uint256 _fee
     ) internal pure returns (uint256 _min_required) {
         assert(_prize_pool >= _fee);
-        bool res;
-        uint256 subbed;
-        (res, _fee) = _fee.tryMul(2);
-        require(res, EnigmaDuelErrors.Underflow());
-        (res, subbed) = _prize_pool.trySub(_fee);
-        require(res, EnigmaDuelErrors.Underflow());
-        (res, _min_required) = subbed.tryDiv(2);
-        require(res, EnigmaDuelErrors.Underflow());
+        uint256 total_fee = _fee * 2;
+        require(total_fee <= _prize_pool, EnigmaDuelErrors.Underflow());
+        _min_required = (_prize_pool - total_fee) / 2;
     }
 
+    /**
+     * @dev Generates a unique key for a game room based on the addresses of the duelists.
+     * @param _duelist1 The address of the first duelist.
+     * @param _duelist2 The address of the second duelist.
+     * @return _game_room_key The generated key for the game room.
+     */
     function gen_game_room_key(
         address _duelist1,
         address _duelist2
@@ -30,18 +37,31 @@ library EnigmaUtils {
         _game_room_key = keccak256(abi.encode(_duelist1, _duelist2));
     }
 
+    /**
+     * @dev Locks a specified amount from the available balance.
+     * @param _balance The current balance of the user.
+     * @param _lock_amount The amount to lock.
+     * @return _new_balance The updated balance after locking the amount.
+     */
     function balance_locker(
         Structures.Balance memory _balance,
         uint256 _lock_amount
     ) internal pure returns (Structures.Balance memory _new_balance) {
         _new_balance = _balance;
-        bool res;
-        (res, _new_balance.available) = _balance.available.trySub(_lock_amount);
-        require(res, EnigmaDuelErrors.Underflow()); // impossible assert
-        (res, _new_balance.locked) = _balance.locked.tryAdd(_lock_amount);
-        require(res, EnigmaDuelErrors.Overflow());
+        require(_balance.available >= _lock_amount, EnigmaDuelErrors.Underflow());
+        _new_balance.available -= _lock_amount;
+        _new_balance.locked += _lock_amount;
     }
 
+    /**
+     * @dev Unlocks a specified amount and updates the balances accordingly.
+     * @param _balance The current balance of the user.
+     * @param _admin_balance The current balance of the admin.
+     * @param _unlock_amount The amount to unlock.
+     * @param is_winner A flag indicating if the user is the winner.
+     * @return _new_admin_balance The updated admin balance.
+     * @return _new_balance The updated user balance.
+     */
     function balance_unlocker(
         Structures.Balance memory _balance,
         Structures.Balance memory _admin_balance,
@@ -57,33 +77,20 @@ library EnigmaUtils {
     {
         _new_balance = _balance;
         _new_admin_balance = _admin_balance;
-        bool res;
 
         if (is_winner) {
-            uint256 winner_share;
-            (res, winner_share) = _unlock_amount.tryMul(2);
-            require(res, EnigmaDuelErrors.Overflow());
-            (res, _new_balance.available) = _balance.available.tryAdd(
-                winner_share
-            );
-            require(res, EnigmaDuelErrors.Overflow());
-            (res, _new_balance.total) = _balance.total.tryAdd(_unlock_amount);
-            require(res, EnigmaDuelErrors.Overflow());
+            uint256 winner_share = _unlock_amount * 2;
+            _new_balance.available += winner_share;
+            _new_balance.total += _unlock_amount;
         } else {
-            (res, _new_balance.available) = _balance.available.tryAdd(
-                _unlock_amount
-            );
-            require(res, EnigmaDuelErrors.Overflow());
+            _new_balance.available += _unlock_amount;
         }
 
-        (res, _new_balance.locked) = _balance.locked.trySub(_unlock_amount);
-        require(res, EnigmaDuelErrors.Underflow());
+        require(_new_balance.locked >= _unlock_amount, EnigmaDuelErrors.Underflow());
+        _new_balance.locked -= _unlock_amount;
+
         if (_new_balance.locked != 0) {
-            // it was not draw
-            (res, _new_admin_balance.total) = _new_admin_balance.total.tryAdd(
-                _new_balance.locked
-            );
-            require(res, EnigmaDuelErrors.Overflow());
+            _new_admin_balance.total += _new_balance.locked;
             _new_balance.locked = 0;
         }
     }

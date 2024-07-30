@@ -28,12 +28,7 @@ contract EnigmaDuel is IEnigmaDuel, Ownable, AccessControl {
     mapping(address => Structures.Balance) public balances;
     mapping(bytes32 => Structures.GameRoom) private gameRooms;
 
-    /**
-     * @dev Sets the initial values for the contract.
-     * @param _edt Address of the EDT token contract.
-     * @param _fee Fee for the game in victory status.
-     * @param _draw_fee Fee for tha game in draw status.
-     */
+
     constructor(
         address _edt,
         uint256 _fee,
@@ -47,11 +42,7 @@ contract EnigmaDuel is IEnigmaDuel, Ownable, AccessControl {
         _setRoleAdmin(ADMIN_ROLE, OWNER_ROLE);
     }
 
-    /**
-     * @dev Withdraws collected fees to a specified address.
-     * @param _amount Amount to withdraw.
-     * @param _dest Destination address to receive the funds.
-     */
+
     function withdrawCollectedFees(
         uint256 _amount,
         address _dest
@@ -72,11 +63,7 @@ contract EnigmaDuel is IEnigmaDuel, Ownable, AccessControl {
         emit FeesCollected(_amount, _dest);
     }
 
-    /**
-     * @dev Starts a new game room with specified parameters.
-     * @param _game_room_init_params Parameters to initialize the game room.
-     * @return _game_room_key The key for the newly created game room.
-     */
+
     function startGameRoom(
         Structures.GameRoom calldata _game_room_init_params
     ) external onlyRole(ADMIN_ROLE) returns (bytes32 _game_room_key) {
@@ -98,16 +85,15 @@ contract EnigmaDuel is IEnigmaDuel, Ownable, AccessControl {
             _game_room_init_params.duelist2
         );
 
-        
-
         require(
-            gameRooms[_game_room_key].status != Structures.GameRoomStatus.Active,
+            gameRooms[_game_room_key].status !=
+                Structures.GameRoomStatus.Active,
             EnigmaDuelErrors.InvalidGameRoomStatus()
         );
 
         gameRooms[_game_room_key] = _game_room_init_params;
         gameRooms[_game_room_key].status = Structures.GameRoomStatus.Active;
-        
+
         balances[_game_room_init_params.duelist1] = EnigmaUtils.balance_locker(
             balances[_game_room_init_params.duelist1],
             min_required
@@ -124,12 +110,7 @@ contract EnigmaDuel is IEnigmaDuel, Ownable, AccessControl {
         );
     }
 
-    /**
-     * @dev Finishes a game room and determines the result.
-     * @param _game_room_key The key of the game room to finish.
-     * @param _winner The address of the winner, or address(0) if it's a draw.
-     * @return _game_room_result The result of the game room.
-     */
+
     function finishGameRoom(
         bytes32 _game_room_key,
         address _winner
@@ -145,10 +126,15 @@ contract EnigmaDuel is IEnigmaDuel, Ownable, AccessControl {
         );
 
         uint256 fee = _winner == address(0) ? DRAW_FEE : FEE;
-        uint256 prizeShare = EnigmaUtils.calc_min_required(gameRoom.prizePool, fee);
+        uint256 prizeShare = EnigmaUtils.calc_min_required(
+            gameRoom.prizePool,
+            fee
+        );
 
         _game_room_result = Structures.GameRoomResult(
-            _winner == address(0) ? Structures.GameRoomResultStatus.Draw : Structures.GameRoomResultStatus.Victory,
+            _winner == address(0)
+                ? Structures.GameRoomResultStatus.Draw
+                : Structures.GameRoomResultStatus.Victory,
             fee,
             gameRoom.duelist1,
             gameRoom.duelist2,
@@ -162,39 +148,32 @@ contract EnigmaDuel is IEnigmaDuel, Ownable, AccessControl {
         bool isWinner1 = _winner == gameRoom.duelist1;
         bool isWinner2 = _winner == gameRoom.duelist2;
 
-        (
-            balances[owner()],
-            balances[gameRoom.duelist1]
-        ) = EnigmaUtils.balance_unlocker(
-            balances[gameRoom.duelist1],
-            balances[owner()],
-            prizeShare,
-            isWinner1
-        );
+        (balances[owner()], balances[gameRoom.duelist1]) = EnigmaUtils
+            .balance_unlocker(
+                balances[gameRoom.duelist1],
+                balances[owner()],
+                prizeShare,
+                isWinner1
+            );
 
-        (
-            balances[owner()],
-            balances[gameRoom.duelist2]
-        ) = EnigmaUtils.balance_unlocker(
-            balances[gameRoom.duelist2],
-            balances[owner()],
-            prizeShare,
-            isWinner2
-        );
+        (balances[owner()], balances[gameRoom.duelist2]) = EnigmaUtils
+            .balance_unlocker(
+                balances[gameRoom.duelist2],
+                balances[owner()],
+                prizeShare,
+                isWinner2
+            );
 
         emit GameFinished(
-            _winner == address(0) ? Structures.GameRoomResultStatus.Draw : Structures.GameRoomResultStatus.Victory,
+            _winner == address(0)
+                ? Structures.GameRoomResultStatus.Draw
+                : Structures.GameRoomResultStatus.Victory,
             fee,
             _winner,
             prizeShare
         );
     }
 
-    /**
-     * @dev Deposits EDT tokens into the contract.
-     * @param deposit_amount The amount of EDT tokens to deposit.
-     * @return _new_balance The new balance of the user.
-     */
     function depositEDT(
         uint256 deposit_amount
     ) external returns (uint256 _new_balance) {
@@ -210,11 +189,7 @@ contract EnigmaDuel is IEnigmaDuel, Ownable, AccessControl {
         _new_balance = balances[_msgSender()].available;
     }
 
-    /**
-     * @dev Withdraws EDT tokens from the contract.
-     * @param withdraw_amount The amount of EDT tokens to withdraw.
-     * @return _new_balance The new balance of the user.
-     */
+
     function withdrawEDT(
         uint256 withdraw_amount
     ) external returns (uint256 _new_balance) {
@@ -229,5 +204,29 @@ contract EnigmaDuel is IEnigmaDuel, Ownable, AccessControl {
         IERC20(EDT).safeTransfer(_msgSender(), withdraw_amount);
 
         _new_balance = balances[_msgSender()].available;
+    }
+
+    function getUserbalance(
+        address user
+    ) external view returns (Structures.Balance memory) {
+        return balances[user];
+    }
+
+    function getGameRoom(
+        bytes32 gameRoomKey
+    ) external view returns (Structures.GameRoom memory) {
+        return gameRooms[gameRoomKey];
+    }
+
+    function getFEE() external view returns (uint256) {
+        return FEE;
+    }
+
+    function getDRAW_FEE() external view returns (uint256) {
+        return DRAW_FEE;
+    }
+
+    function getEDT() external view returns (address) {
+        return EDT;
     }
 }
