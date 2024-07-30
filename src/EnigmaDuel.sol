@@ -2,6 +2,7 @@
 pragma solidity ^0.8.26;
 
 import {IERC20} from "@openzeppelin-contracts/token/ERC20/IERC20.sol";
+import {SafeERC20} from "@openzeppelin-contracts/token/ERC20/utils/SafeERC20.sol";
 import {Ownable} from "@openzeppelin-contracts/access/Ownable.sol";
 import {AccessControl} from "@openzeppelin-contracts/access/AccessControl.sol";
 import {EnigmaDuelErrors} from "./libs/Errors.sol";
@@ -11,6 +12,7 @@ import {Structures} from "./libs/Structures.sol";
 import {EnigmaUtils} from "./utils/Utils.sol";
 
 contract EnigmaDuel is IEnigmaDuel, Ownable, AccessControl {
+    using SafeERC20 for IERC20;
     using Math for uint256;
 
     address public EDT;
@@ -52,16 +54,13 @@ contract EnigmaDuel is IEnigmaDuel, Ownable, AccessControl {
         );
         bool res;
         // decreasing the balance
-        (res, balances[_msgSender()].total) = balances[_msgSender()].total.trySub(
-            _amount
-        );
+        (res, balances[_msgSender()].total) = balances[_msgSender()]
+            .total
+            .trySub(_amount);
         require(res, EnigmaDuelErrors.Underflow());
 
         // trasferring
-        require(
-            IERC20(EDT).transfer(_dest, _amount),
-            EnigmaDuelErrors.CollectingFeesFailed()
-        );
+        IERC20(EDT).safeTransfer(_dest, _amount);
 
         // emitting the event
         emit FeesCollected(_amount, _dest);
@@ -242,15 +241,11 @@ contract EnigmaDuel is IEnigmaDuel, Ownable, AccessControl {
         uint256 deposite_amount
     ) external returns (uint256 _new_balance) {
         // transferring the tokens
-        require(
-            IERC20(EDT).transferFrom(
-                _msgSender(),
-                address(this),
-                deposite_amount
-            ),
-            EnigmaDuelErrors.DepositeFailed()
+        IERC20(EDT).safeTransferFrom(
+            _msgSender(),
+            address(this),
+            deposite_amount
         );
-
         // changing the user state
         bool res;
         (res, balances[_msgSender()].total) = balances[_msgSender()]
@@ -285,10 +280,7 @@ contract EnigmaDuel is IEnigmaDuel, Ownable, AccessControl {
         require(res, EnigmaDuelErrors.Underflow());
 
         // transferring the tokens
-        require(
-            IERC20(EDT).transfer(_msgSender(), withdraw_amount),
-            EnigmaDuelErrors.DepositeFailed()
-        );
+        IERC20(EDT).safeTransfer(_msgSender(), withdraw_amount);
 
         _new_balance = balances[_msgSender()].available;
     }
