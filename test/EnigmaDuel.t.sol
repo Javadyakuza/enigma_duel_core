@@ -4,15 +4,21 @@ pragma solidity ^0.8.26;
 import "forge-std/Test.sol";
 import "../src/EnigmaDuel.sol";
 import "../src/libs/Structures.sol";
-import "../src/interfaces/IEnigmaDuelState.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "../src/EnigmaDuelToken.sol";
+import {EnigmaDuelState} from "../src/EnigmaDuelState.sol";
+import "../src/interfaces/IEnigmaDuelState.sol";
 import "forge-std/console.sol";
+import "../src/EnigmaDuelProxy.sol";
+import "../src/EnigmaDuelProxyAdmin.sol";
 
 contract EnigmaDuelTest is Test {
     EnigmaDuel enigmaDuel;
+    EnigmaDuelState enigmaState;
     EDTToken edtToken;
+    EnigmaDuelProxyAdmin proxyAdmin;
+    EnigmaDuelProxy proxy;
     address admin;
     address user1;
     address user2;
@@ -31,16 +37,29 @@ contract EnigmaDuelTest is Test {
         loser = address(5);
 
         vm.startPrank(admin);
+
         // Deploy ERC20 token and mint initial supply to admin
         edtToken = new EDTToken(0);
         edtToken.mint(admin, initialSupply);
 
-        // Deploy EnigmaDuel contract
-        enigmaDuel = new EnigmaDuel(address(edtToken), fee, drawFee);
+        enigmaState = new EnigmaDuelState();
 
-        // Assign roles
-        // enigmaDuel.grantRole(enigmaDuel.ADMIN_ROLE(), admin);
-        // enigmaDuel.grantRole(enigmaDuel.OWNER_ROLE(), admin);
+        // Deploy EnigmaDuel contract
+        enigmaDuel = new EnigmaDuel();
+        enigmaState.initialize(admin);
+        
+        bytes memory data = abi.encodeWithSignature(
+            "initialize(address,address,uint256,uint256)",
+            address(enigmaState),
+            address(edtToken),
+            fee,
+            drawFee
+        );
+
+        proxyAdmin = new EnigmaDuelProxyAdmin();
+        proxy = new EnigmaDuelProxy(address(enigmaDuel), address(proxyAdmin), data);
+        enigmaDuel = EnigmaDuel(address(proxy));
+        enigmaState.chagngeAuthorizedCaller(address(enigmaDuel));
 
         // Distribute tokens to users
         edtToken.transfer(user1, 100 * 10 ** 18);
@@ -94,12 +113,13 @@ contract EnigmaDuelTest is Test {
         vm.stopPrank();
 
         // Start game room
-        IEnigmaDuelState.GameRoom memory gameRoomParams = IEnigmaDuelState.GameRoom({
-            duelist1: user1,
-            duelist2: user2,
-            prizePool: prizePool,
-            status: IEnigmaDuelState.GameRoomStatus.InActive
-        });
+        IEnigmaDuelState.GameRoom memory gameRoomParams = IEnigmaDuelState
+            .GameRoom({
+                duelist1: user1,
+                duelist2: user2,
+                prizePool: prizePool,
+                status: IEnigmaDuelState.GameRoomStatus.Active
+            });
 
         vm.prank(admin);
         bytes32 gameRoomKey = enigmaDuel.startGameRoom(gameRoomParams);
@@ -132,12 +152,13 @@ contract EnigmaDuelTest is Test {
         vm.stopPrank();
 
         // Start game room
-        IEnigmaDuelState.GameRoom memory gameRoomParams = IEnigmaDuelState.GameRoom({
-            duelist1: user1,
-            duelist2: user2,
-            prizePool: prizePool,
-            status: IEnigmaDuelState.GameRoomStatus.InActive
-        });
+        IEnigmaDuelState.GameRoom memory gameRoomParams = IEnigmaDuelState
+            .GameRoom({
+                duelist1: user1,
+                duelist2: user2,
+                prizePool: prizePool,
+                status: IEnigmaDuelState.GameRoomStatus.Active
+            });
 
         vm.prank(admin);
         bytes32 gameRoomKey = enigmaDuel.startGameRoom(gameRoomParams);
@@ -172,12 +193,13 @@ contract EnigmaDuelTest is Test {
         vm.stopPrank();
 
         // Start game room
-        IEnigmaDuelState.GameRoom memory gameRoomParams = IEnigmaDuelState.GameRoom({
-            duelist1: user1,
-            duelist2: user2,
-            prizePool: prizePool,
-            status: IEnigmaDuelState.GameRoomStatus.InActive
-        });
+        IEnigmaDuelState.GameRoom memory gameRoomParams = IEnigmaDuelState
+            .GameRoom({
+                duelist1: user1,
+                duelist2: user2,
+                prizePool: prizePool,
+                status: IEnigmaDuelState.GameRoomStatus.Active
+            });
 
         vm.prank(admin);
         bytes32 gameRoomKey = enigmaDuel.startGameRoom(gameRoomParams);
@@ -212,24 +234,27 @@ contract EnigmaDuelTest is Test {
         vm.stopPrank();
 
         // Start game room
-        IEnigmaDuelState.GameRoom memory gameRoomParams = IEnigmaDuelState.GameRoom({
-            duelist1: user1,
-            duelist2: user2,
-            prizePool: prizePool,
-            status: IEnigmaDuelState.GameRoomStatus.InActive
-        });
+        IEnigmaDuelState.GameRoom memory gameRoomParams = IEnigmaDuelState
+            .GameRoom({
+                duelist1: user1,
+                duelist2: user2,
+                prizePool: prizePool,
+                status: IEnigmaDuelState.GameRoomStatus.Active
+            });
 
         vm.startPrank(admin);
         bytes32 gameRoomKey = enigmaDuel.startGameRoom(gameRoomParams);
 
         // Finish game room with a victory
-       enigmaDuel
-            .finishGameRoom(gameRoomKey, user1);
+        enigmaDuel.finishGameRoom(gameRoomKey, user1);
 
         // Withdraw collected fees
         enigmaDuel.withdrawCollectedFees(fee, admin); // actually one games fee is collected
 
-        assertEq(edtToken.balanceOf(admin), initialSupply - ((100 * 10 ** 18) * 2) + fee);
+        assertEq(
+            edtToken.balanceOf(admin),
+            initialSupply - ((100 * 10 ** 18) * 2) + fee
+        );
         vm.stopPrank();
     }
 }

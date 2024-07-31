@@ -41,7 +41,7 @@ contract EnigmaDuelState is Initializable {
     }
 
     function chagngeAuthorizedCaller(address _authorizedCaller) public {
-        require(msg.sender == owner, " not owner");
+        require(msg.sender == owner, "not owner");
         authorizedCaller = _authorizedCaller;
     }
 
