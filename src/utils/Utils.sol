@@ -9,19 +9,19 @@ library EnigmaUtils {
     using Math for uint256;
 
     /**
-     * @dev Calculates the minimum required balance based on prize pool and fee.
+     * @dev Calculates the share of each duelist based on prize pool and fee.
      * @param _prize_pool The total prize pool for the game.
      * @param _fee The fee to be deducted from the prize pool.
-     * @return _min_required The minimum required balance for each duelist.
+     * @return _share The minimum required balance for each duelist.
      */
-    function calc_min_required(
+    function calc_share(
         uint256 _prize_pool,
         uint256 _fee
-    ) internal pure returns (uint256 _min_required) {
+    ) internal pure returns (uint256 _share) {
         assert(_prize_pool >= _fee);
         uint256 total_fee = _fee * 2;
         require(total_fee <= _prize_pool, EnigmaDuelErrors.Underflow());
-        _min_required = (_prize_pool - total_fee) / 2;
+        _share = (_prize_pool - total_fee) / 2;
     }
 
     /**

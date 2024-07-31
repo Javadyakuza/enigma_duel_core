@@ -28,7 +28,6 @@ contract EnigmaDuel is IEnigmaDuel, Ownable, AccessControl {
     mapping(address => Structures.Balance) public balances;
     mapping(bytes32 => Structures.GameRoom) private gameRooms;
 
-
     constructor(
         address _edt,
         uint256 _fee,
@@ -38,10 +37,10 @@ contract EnigmaDuel is IEnigmaDuel, Ownable, AccessControl {
         FEE = _fee;
         DRAW_FEE = _draw_fee;
 
-        _grantRole(OWNER_ROLE, msg.sender);
+        _grantRole(OWNER_ROLE, _msgSender());
         _setRoleAdmin(ADMIN_ROLE, OWNER_ROLE);
+        _grantRole(ADMIN_ROLE, _msgSender());
     }
-
 
     function withdrawCollectedFees(
         uint256 _amount,
@@ -52,7 +51,7 @@ contract EnigmaDuel is IEnigmaDuel, Ownable, AccessControl {
             EnigmaDuelErrors.AddressZeroNotSupported()
         );
         require(
-            balances[_msgSender()].available >= _amount,
+            balances[_msgSender()].total >= _amount,
             EnigmaDuelErrors.InsufficientBalance()
         );
 
@@ -63,19 +62,13 @@ contract EnigmaDuel is IEnigmaDuel, Ownable, AccessControl {
         emit FeesCollected(_amount, _dest);
     }
 
-
     function startGameRoom(
         Structures.GameRoom calldata _game_room_init_params
     ) external onlyRole(ADMIN_ROLE) returns (bytes32 _game_room_key) {
-        uint256 min_required = EnigmaUtils.calc_min_required(
-            _game_room_init_params.prizePool,
-            DRAW_FEE
-        );
-
         require(
-            min_required <=
+            (_game_room_init_params.prizePool / 2) <=
                 balances[_game_room_init_params.duelist1].available &&
-                min_required <=
+                (_game_room_init_params.prizePool / 2) <=
                 balances[_game_room_init_params.duelist2].available,
             EnigmaDuelErrors.InsufficientBalance()
         );
@@ -96,11 +89,11 @@ contract EnigmaDuel is IEnigmaDuel, Ownable, AccessControl {
 
         balances[_game_room_init_params.duelist1] = EnigmaUtils.balance_locker(
             balances[_game_room_init_params.duelist1],
-            min_required
+            (_game_room_init_params.prizePool / 2)
         );
         balances[_game_room_init_params.duelist2] = EnigmaUtils.balance_locker(
             balances[_game_room_init_params.duelist2],
-            min_required
+            (_game_room_init_params.prizePool / 2)
         );
 
         emit GameStarted(
@@ -109,7 +102,6 @@ contract EnigmaDuel is IEnigmaDuel, Ownable, AccessControl {
             _game_room_init_params.prizePool
         );
     }
-
 
     function finishGameRoom(
         bytes32 _game_room_key,
@@ -126,7 +118,7 @@ contract EnigmaDuel is IEnigmaDuel, Ownable, AccessControl {
         );
 
         uint256 fee = _winner == address(0) ? DRAW_FEE : FEE;
-        uint256 prizeShare = EnigmaUtils.calc_min_required(
+        uint256 prizeShare = EnigmaUtils.calc_share(
             gameRoom.prizePool,
             fee
         );
@@ -188,7 +180,6 @@ contract EnigmaDuel is IEnigmaDuel, Ownable, AccessControl {
 
         _new_balance = balances[_msgSender()].available;
     }
-
 
     function withdrawEDT(
         uint256 withdraw_amount
