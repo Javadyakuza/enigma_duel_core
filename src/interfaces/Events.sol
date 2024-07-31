@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.26;
 
-import {Structures} from "../libs/Structures.sol";
+import {IEnigmaDuelState} from "../interfaces/IEnigmaDuelState.sol";
 
 /**
  * @title Events
@@ -31,7 +31,7 @@ interface Events {
      * @param winnnerReceived The amount received by the winner.
      */
     event GameFinished(
-        Structures.GameRoomResultStatus status,
+        IEnigmaDuelState.GameRoomResultStatus status,
         uint256 fee,
         address winner,
         uint256 winnnerReceived

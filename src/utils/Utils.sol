@@ -4,6 +4,7 @@ pragma solidity ^0.8.26;
 import {Math} from "@openzeppelin-contracts/utils/math/Math.sol";
 import {EnigmaDuelErrors} from "../libs/Errors.sol";
 import {Structures} from "../libs/Structures.sol";
+import {IEnigmaDuelState} from "../interfaces/IEnigmaDuelState.sol";
 
 library EnigmaUtils {
     using Math for uint256;
@@ -44,9 +45,9 @@ library EnigmaUtils {
      * @return _new_balance The updated balance after locking the amount.
      */
     function balance_locker(
-        Structures.Balance memory _balance,
+        IEnigmaDuelState.Balance memory _balance,
         uint256 _lock_amount
-    ) internal pure returns (Structures.Balance memory _new_balance) {
+    ) internal pure returns (IEnigmaDuelState.Balance memory _new_balance) {
         _new_balance = _balance;
         require(_balance.available >= _lock_amount, EnigmaDuelErrors.Underflow());
         _new_balance.available -= _lock_amount;
@@ -63,16 +64,16 @@ library EnigmaUtils {
      * @return _new_balance The updated user balance.
      */
     function balance_unlocker(
-        Structures.Balance memory _balance,
-        Structures.Balance memory _admin_balance,
+        IEnigmaDuelState.Balance memory _balance,
+        IEnigmaDuelState.Balance memory _admin_balance,
         uint256 _unlock_amount,
         bool is_winner
     )
         internal
         pure
         returns (
-            Structures.Balance memory _new_admin_balance,
-            Structures.Balance memory _new_balance
+            IEnigmaDuelState.Balance memory _new_admin_balance,
+            IEnigmaDuelState.Balance memory _new_balance
         )
     {
         _new_balance = _balance;
@@ -89,8 +90,9 @@ library EnigmaUtils {
         require(_new_balance.locked >= _unlock_amount, EnigmaDuelErrors.Underflow());
         _new_balance.locked -= _unlock_amount;
 
-        if (_new_balance.locked != 0) {
+        if (_new_balance.locked != 0 && is_winner) {
             _new_admin_balance.total += _new_balance.locked;
+            _new_admin_balance.available += _new_balance.locked;
             _new_balance.locked = 0;
         }
     }

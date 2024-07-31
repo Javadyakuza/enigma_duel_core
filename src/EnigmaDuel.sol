@@ -10,38 +10,60 @@ import {IEnigmaDuel} from "./interfaces/IEnigmaDuel.sol";
 import {Math} from "@openzeppelin-contracts/utils/math/Math.sol";
 import {Structures} from "./libs/Structures.sol";
 import {EnigmaUtils} from "./utils/Utils.sol";
+import {IEnigmaDuelState} from "./interfaces/IEnigmaDuelState.sol";
+import "@openzeppelin/contracts/proxy/utils/Initializable.sol";
+import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 
 /**
  * @title EnigmaDuel
  * @dev A contract for managing duels, handling fees, and tracking balances in the Enigma Duel game.
  */
-contract EnigmaDuel is IEnigmaDuel, Ownable, AccessControl {
+contract EnigmaDuel is IEnigmaDuel, Initializable, OwnableUpgradeable, AccessControlUpgradeable {
     using SafeERC20 for IERC20;
     using Math for uint256;
 
-    address public EDT;
+    IERC20 public EDT;
+    IEnigmaDuelState public STATE;
     uint256 public FEE;
     uint256 public DRAW_FEE;
     bytes32 public constant ADMIN_ROLE = keccak256("ADMIN");
     bytes32 public constant OWNER_ROLE = keccak256("OWNER");
 
-    mapping(address => Structures.Balance) public balances;
-    mapping(bytes32 => Structures.GameRoom) private gameRooms;
+    // mapping(address => Balance) public balances;
+    // mapping(bytes32 => GameRoom) private gameRooms;
 
     constructor(
         address _edt,
+        address _state,
         uint256 _fee,
         uint256 _draw_fee
     ) Ownable(_msgSender()) {
-        EDT = _edt;
+        EDT = IERC20(_edt);
+        STATE = IEnigmaDuelState(_state);
         FEE = _fee;
         DRAW_FEE = _draw_fee;
-
         _grantRole(OWNER_ROLE, _msgSender());
         _setRoleAdmin(ADMIN_ROLE, OWNER_ROLE);
         _grantRole(ADMIN_ROLE, _msgSender());
     }
+    function initialize(
+        address _state,
+        address _edt,
+        uint256 _fee,
+        uint256 _draw_fee
+    ) public initializer {
+        __Ownable_init();
+        __AccessControl_init();
 
+        state = IEnigmaDuelState(_state);
+        EDT = _edt;
+        FEE = _fee;
+        DRAW_FEE = _draw_fee;
+
+        _grantRole(OWNER_ROLE, msg.sender);
+        _setRoleAdmin(ADMIN_ROLE, OWNER_ROLE);
+    }
     function withdrawCollectedFees(
         uint256 _amount,
         address _dest
@@ -51,25 +73,25 @@ contract EnigmaDuel is IEnigmaDuel, Ownable, AccessControl {
             EnigmaDuelErrors.AddressZeroNotSupported()
         );
         require(
-            balances[_msgSender()].total >= _amount,
+            STATE.getBalance(_msgSender()).total >= _amount,
             EnigmaDuelErrors.InsufficientBalance()
         );
 
-        balances[_msgSender()].total -= _amount;
+        STATE.decreaseBalance(_msgSender(), _amount);
 
-        IERC20(EDT).safeTransfer(_dest, _amount);
+        EDT.safeTransfer(_dest, _amount);
 
         emit FeesCollected(_amount, _dest);
     }
 
     function startGameRoom(
-        Structures.GameRoom calldata _game_room_init_params
+        IEnigmaDuelState.GameRoom calldata _game_room_init_params
     ) external onlyRole(ADMIN_ROLE) returns (bytes32 _game_room_key) {
         require(
             (_game_room_init_params.prizePool / 2) <=
-                balances[_game_room_init_params.duelist1].available &&
+                STATE.getBalance(_game_room_init_params.duelist1).available &&
                 (_game_room_init_params.prizePool / 2) <=
-                balances[_game_room_init_params.duelist2].available,
+                STATE.getBalance(_game_room_init_params.duelist2).available,
             EnigmaDuelErrors.InsufficientBalance()
         );
 
@@ -79,21 +101,28 @@ contract EnigmaDuel is IEnigmaDuel, Ownable, AccessControl {
         );
 
         require(
-            gameRooms[_game_room_key].status !=
-                Structures.GameRoomStatus.Active,
+            STATE.getGameRoom(_game_room_key).status !=
+                IEnigmaDuelState.GameRoomStatus.Active &&
+                _game_room_init_params.status ==
+                IEnigmaDuelState.GameRoomStatus.Active,
             EnigmaDuelErrors.InvalidGameRoomStatus()
         );
 
-        gameRooms[_game_room_key] = _game_room_init_params;
-        gameRooms[_game_room_key].status = Structures.GameRoomStatus.Active;
+        STATE.setGameRoom(_game_room_key, _game_room_init_params);
 
-        balances[_game_room_init_params.duelist1] = EnigmaUtils.balance_locker(
-            balances[_game_room_init_params.duelist1],
-            (_game_room_init_params.prizePool / 2)
+        STATE.setBalance(
+            _game_room_init_params.duelist1,
+            EnigmaUtils.balance_locker(
+                STATE.getBalance(_game_room_init_params.duelist1),
+                (_game_room_init_params.prizePool / 2)
+            )
         );
-        balances[_game_room_init_params.duelist2] = EnigmaUtils.balance_locker(
-            balances[_game_room_init_params.duelist2],
-            (_game_room_init_params.prizePool / 2)
+        STATE.setBalance(
+            _game_room_init_params.duelist2,
+            EnigmaUtils.balance_locker(
+                STATE.getBalance(_game_room_init_params.duelist2),
+                (_game_room_init_params.prizePool / 2)
+            )
         );
 
         emit GameStarted(
@@ -111,22 +140,21 @@ contract EnigmaDuel is IEnigmaDuel, Ownable, AccessControl {
         onlyRole(ADMIN_ROLE)
         returns (Structures.GameRoomResult memory _game_room_result)
     {
-        Structures.GameRoom storage gameRoom = gameRooms[_game_room_key];
+        IEnigmaDuelState.GameRoom memory gameRoom = STATE.getGameRoom(
+            _game_room_key
+        );
         require(
-            gameRoom.status == Structures.GameRoomStatus.Active,
+            gameRoom.status == IEnigmaDuelState.GameRoomStatus.Active,
             EnigmaDuelErrors.InvalidGameRoomStatus()
         );
 
         uint256 fee = _winner == address(0) ? DRAW_FEE : FEE;
-        uint256 prizeShare = EnigmaUtils.calc_share(
-            gameRoom.prizePool,
-            fee
-        );
+        uint256 prizeShare = EnigmaUtils.calc_share(gameRoom.prizePool, fee);
 
         _game_room_result = Structures.GameRoomResult(
             _winner == address(0)
-                ? Structures.GameRoomResultStatus.Draw
-                : Structures.GameRoomResultStatus.Victory,
+                ? IEnigmaDuelState.GameRoomResultStatus.Draw
+                : IEnigmaDuelState.GameRoomResultStatus.Victory,
             fee,
             gameRoom.duelist1,
             gameRoom.duelist2,
@@ -134,32 +162,37 @@ contract EnigmaDuel is IEnigmaDuel, Ownable, AccessControl {
             prizeShare
         );
 
-        gameRoom.status = Structures.GameRoomStatus.Finished;
+        gameRoom.status = IEnigmaDuelState.GameRoomStatus.Finished;
         gameRoom.prizePool = 0;
 
         bool isWinner1 = _winner == gameRoom.duelist1;
         bool isWinner2 = _winner == gameRoom.duelist2;
+        IEnigmaDuelState.Balance memory owner_balance = STATE.getBalance(
+            owner()
+        );
+        IEnigmaDuelState.Balance memory tmp_bal1;
+        IEnigmaDuelState.Balance memory tmp_bal2;
 
-        (balances[owner()], balances[gameRoom.duelist1]) = EnigmaUtils
-            .balance_unlocker(
-                balances[gameRoom.duelist1],
-                balances[owner()],
-                prizeShare,
-                isWinner1
-            );
-
-        (balances[owner()], balances[gameRoom.duelist2]) = EnigmaUtils
-            .balance_unlocker(
-                balances[gameRoom.duelist2],
-                balances[owner()],
-                prizeShare,
-                isWinner2
-            );
-
+        (tmp_bal1, tmp_bal2) = EnigmaUtils.balance_unlocker(
+            STATE.getBalance(gameRoom.duelist1),
+            owner_balance,
+            prizeShare,
+            isWinner1
+        );
+        STATE.setBalance(owner(), tmp_bal1);
+        STATE.setBalance(gameRoom.duelist1, tmp_bal2);
+        (tmp_bal1, tmp_bal2) = EnigmaUtils.balance_unlocker(
+            STATE.getBalance(gameRoom.duelist2),
+            owner_balance,
+            prizeShare,
+            isWinner2
+        );
+        STATE.setBalance(owner(), tmp_bal1);
+        STATE.setBalance(gameRoom.duelist2, tmp_bal2);
         emit GameFinished(
             _winner == address(0)
-                ? Structures.GameRoomResultStatus.Draw
-                : Structures.GameRoomResultStatus.Victory,
+                ? IEnigmaDuelState.GameRoomResultStatus.Draw
+                : IEnigmaDuelState.GameRoomResultStatus.Victory,
             fee,
             _winner,
             prizeShare
@@ -169,44 +202,38 @@ contract EnigmaDuel is IEnigmaDuel, Ownable, AccessControl {
     function depositEDT(
         uint256 deposit_amount
     ) external returns (uint256 _new_balance) {
-        IERC20(EDT).safeTransferFrom(
-            _msgSender(),
-            address(this),
-            deposit_amount
-        );
+        EDT.safeTransferFrom(_msgSender(), address(this), deposit_amount);
 
-        balances[_msgSender()].total += deposit_amount;
-        balances[_msgSender()].available += deposit_amount;
+        STATE.increaseBalance(_msgSender(), deposit_amount);
 
-        _new_balance = balances[_msgSender()].available;
+        _new_balance = STATE.getBalance(_msgSender()).available;
     }
 
     function withdrawEDT(
         uint256 withdraw_amount
     ) external returns (uint256 _new_balance) {
         require(
-            balances[_msgSender()].available >= withdraw_amount,
+            STATE.getBalance(_msgSender()).available >= withdraw_amount,
             EnigmaDuelErrors.InsufficientBalance()
         );
 
-        balances[_msgSender()].available -= withdraw_amount;
-        balances[_msgSender()].total -= withdraw_amount;
+        STATE.decreaseBalance(_msgSender(), withdraw_amount);
 
-        IERC20(EDT).safeTransfer(_msgSender(), withdraw_amount);
+        EDT.safeTransfer(_msgSender(), withdraw_amount);
 
-        _new_balance = balances[_msgSender()].available;
+        _new_balance = STATE.getBalance(_msgSender()).available;
     }
 
     function getUserbalance(
         address user
-    ) external view returns (Structures.Balance memory) {
-        return balances[user];
+    ) external view returns (IEnigmaDuelState.Balance memory _balance) {
+        return STATE.getBalance(user);
     }
 
     function getGameRoom(
         bytes32 gameRoomKey
-    ) external view returns (Structures.GameRoom memory) {
-        return gameRooms[gameRoomKey];
+    ) external view returns (IEnigmaDuelState.GameRoom memory) {
+        return STATE.getGameRoom(gameRoomKey);
     }
 
     function getFEE() external view returns (uint256) {
@@ -218,6 +245,10 @@ contract EnigmaDuel is IEnigmaDuel, Ownable, AccessControl {
     }
 
     function getEDT() external view returns (address) {
-        return EDT;
+        return address(EDT);
+    }
+
+    function getState() external view returns (address) {
+        return address(STATE);
     }
 }

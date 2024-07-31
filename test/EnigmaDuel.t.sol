@@ -4,6 +4,7 @@ pragma solidity ^0.8.26;
 import "forge-std/Test.sol";
 import "../src/EnigmaDuel.sol";
 import "../src/libs/Structures.sol";
+import "../src/interfaces/IEnigmaDuelState.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "../src/EnigmaDuelToken.sol";
@@ -93,17 +94,17 @@ contract EnigmaDuelTest is Test {
         vm.stopPrank();
 
         // Start game room
-        Structures.GameRoom memory gameRoomParams = Structures.GameRoom({
+        IEnigmaDuelState.GameRoom memory gameRoomParams = IEnigmaDuelState.GameRoom({
             duelist1: user1,
             duelist2: user2,
             prizePool: prizePool,
-            status: Structures.GameRoomStatus.InActive
+            status: IEnigmaDuelState.GameRoomStatus.InActive
         });
 
         vm.prank(admin);
         bytes32 gameRoomKey = enigmaDuel.startGameRoom(gameRoomParams);
 
-        Structures.GameRoom memory gameRoom = enigmaDuel.getGameRoom(
+        IEnigmaDuelState.GameRoom memory gameRoom = enigmaDuel.getGameRoom(
             gameRoomKey
         );
         assertEq(gameRoom.duelist1, user1);
@@ -111,7 +112,7 @@ contract EnigmaDuelTest is Test {
         assertEq(gameRoom.prizePool, prizePool);
         assertEq(
             uint8(gameRoom.status),
-            uint8(Structures.GameRoomStatus.Active)
+            uint8(IEnigmaDuelState.GameRoomStatus.Active)
         );
     }
 
@@ -131,11 +132,11 @@ contract EnigmaDuelTest is Test {
         vm.stopPrank();
 
         // Start game room
-        Structures.GameRoom memory gameRoomParams = Structures.GameRoom({
+        IEnigmaDuelState.GameRoom memory gameRoomParams = IEnigmaDuelState.GameRoom({
             duelist1: user1,
             duelist2: user2,
             prizePool: prizePool,
-            status: Structures.GameRoomStatus.InActive
+            status: IEnigmaDuelState.GameRoomStatus.InActive
         });
 
         vm.prank(admin);
@@ -148,7 +149,7 @@ contract EnigmaDuelTest is Test {
 
         assertEq(
             uint8(gameRoomResult.status),
-            uint8(Structures.GameRoomResultStatus.Victory)
+            uint8(IEnigmaDuelState.GameRoomResultStatus.Victory)
         );
         assertEq(gameRoomResult.duelist1, user1);
         assertEq(gameRoomResult.duelist2, user2);
@@ -171,11 +172,11 @@ contract EnigmaDuelTest is Test {
         vm.stopPrank();
 
         // Start game room
-        Structures.GameRoom memory gameRoomParams = Structures.GameRoom({
+        IEnigmaDuelState.GameRoom memory gameRoomParams = IEnigmaDuelState.GameRoom({
             duelist1: user1,
             duelist2: user2,
             prizePool: prizePool,
-            status: Structures.GameRoomStatus.InActive
+            status: IEnigmaDuelState.GameRoomStatus.InActive
         });
 
         vm.prank(admin);
@@ -188,7 +189,7 @@ contract EnigmaDuelTest is Test {
 
         assertEq(
             uint8(gameRoomResult.status),
-            uint8(Structures.GameRoomResultStatus.Draw)
+            uint8(IEnigmaDuelState.GameRoomResultStatus.Draw)
         );
         assertEq(gameRoomResult.duelist1, user1);
         assertEq(gameRoomResult.duelist2, user2);
@@ -211,11 +212,11 @@ contract EnigmaDuelTest is Test {
         vm.stopPrank();
 
         // Start game room
-        Structures.GameRoom memory gameRoomParams = Structures.GameRoom({
+        IEnigmaDuelState.GameRoom memory gameRoomParams = IEnigmaDuelState.GameRoom({
             duelist1: user1,
             duelist2: user2,
             prizePool: prizePool,
-            status: Structures.GameRoomStatus.InActive
+            status: IEnigmaDuelState.GameRoomStatus.InActive
         });
 
         vm.startPrank(admin);

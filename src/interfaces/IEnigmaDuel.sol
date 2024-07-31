@@ -2,6 +2,7 @@
 pragma solidity ^0.8.26;
 
 import {Structures} from "../libs/Structures.sol";
+import {IEnigmaDuelState} from "./IEnigmaDuelState.sol";
 import {Events} from "./Events.sol";
 
 /**
@@ -22,7 +23,7 @@ interface IEnigmaDuel is Events {
      * @param _game_room_init_params Parameters to initialize the game room.
      * @return _game_room_key The key for the newly created game room.
      */
-    function startGameRoom(Structures.GameRoom calldata _game_room_init_params)
+    function startGameRoom(IEnigmaDuelState.GameRoom calldata _game_room_init_params)
         external
         returns (bytes32 _game_room_key);
 
@@ -55,14 +56,14 @@ interface IEnigmaDuel is Events {
      * @param user The address of the user.
      * @return The balance structure of the user.
      */
-    function getUserbalance(address user) external view returns (Structures.Balance memory);
+    function getUserbalance(address user) external view returns (IEnigmaDuelState.Balance memory);
 
     /**
      * @dev Returns the game room structure of a game room.
      * @param gameRoomKey The key of the game room.
      * @return The game room structure.
      */
-    function getGameRoom(bytes32 gameRoomKey) external view returns (Structures.GameRoom memory);
+    function getGameRoom(bytes32 gameRoomKey) external view returns (IEnigmaDuelState.GameRoom memory);
 
     /**
      * @dev Returns the fee for a victory.
