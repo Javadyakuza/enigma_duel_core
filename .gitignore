@@ -13,4 +13,4 @@ docs/
 # Dotenv file
 .env
 
-scripts/ts/node_modules/*
+script/ts/node_modules/*
