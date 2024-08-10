@@ -1,3 +1,24 @@
+pub mod models;
+use ethabi::{Address, Event, EventParam, ParamType, RawLog, Token};
+use ethers::{
+    core::k256::ecdsa,
+    middleware::SignerMiddleware,
+    prelude::abigen,
+    providers::{Http, Provider},
+    signers::{LocalWallet, Signer, Wallet},
+    types::Log,
+    utils::{hex, keccak256},
+};
+use models::{Addresses, GameFinished};
+use dotenv::dotenv;
+use ethers::types::U256;
+use eyre::Result;
+use std::env;
+use std::str::FromStr;
+use std::time::Duration;
+abigen!(EnigmaDuel, "./data/build/EnigmaDuelABI.json");
+abigen!(EDT, "./data/build/EDTABI.json");
+
 /// Starts a new game room with the given `GameRoom` data.
 /// 
 /// # Arguments
