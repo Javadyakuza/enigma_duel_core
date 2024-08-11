@@ -20,20 +20,25 @@ interface Events {
      * @param duelist1 The address of the first duelist.
      * @param duelist2 The address of the second duelist.
      * @param prizePool The prize pool of the game.
+     * @param gameRoomKey The key for the game room.
      */
-    event GameStarted(address duelist1, address duelist2, uint256 prizePool);
+    event GameStarted(address duelist1, address duelist2, uint256 prizePool, bytes32 gameRoomKey);
 
     /**
      * @dev Emitted when a game room is finished.
      * @param status The result status of the game room (draw or victory).
      * @param fee The fee associated with the game.
-     * @param winner The address of the winner (or address(0) if it's a draw).
-     * @param winnnerReceived The amount received by the winner.
+     * @param duelist1 The address of duelist 1.
+     * @param duelist1Received The amount received by the duelist1.
+     * @param duelist2 The address of duelist 1.
+     * @param duelist2Received The amount received by the duelist2.
      */
     event GameFinished(
         IEnigmaDuelState.GameRoomResultStatus status,
         uint256 fee,
-        address winner,
-        uint256 winnnerReceived
+        address duelist1,
+        uint256 duelist1Received,
+        address duelist2, 
+        uint256 duelist2Received
     );
 }

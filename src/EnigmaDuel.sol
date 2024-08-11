@@ -11,15 +11,19 @@ import {Math} from "@openzeppelin-contracts/utils/math/Math.sol";
 import {Structures} from "./libs/Structures.sol";
 import {EnigmaUtils} from "./utils/Utils.sol";
 import {IEnigmaDuelState} from "./interfaces/IEnigmaDuelState.sol";
-import "@openzeppelin/contracts/proxy/utils/Initializable.sol";
-import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
-
+import "@openzeppelin-contracts-upgradeable/proxy/utils/Initializable.sol";
+import "@openzeppelin-contracts-upgradeable/access/OwnableUpgradeable.sol";
+import "@openzeppelin-contracts-upgradeable/access/AccessControlUpgradeable.sol";
 /**
  * @title EnigmaDuel
  * @dev A contract for managing duels, handling fees, and tracking balances in the Enigma Duel game.
  */
-contract EnigmaDuel is IEnigmaDuel, Initializable, OwnableUpgradeable, AccessControlUpgradeable {
+contract EnigmaDuel is
+    IEnigmaDuel,
+    Initializable,
+    OwnableUpgradeable,
+    AccessControlUpgradeable
+{
     using SafeERC20 for IERC20;
     using Math for uint256;
 
@@ -30,40 +34,25 @@ contract EnigmaDuel is IEnigmaDuel, Initializable, OwnableUpgradeable, AccessCon
     bytes32 public constant ADMIN_ROLE = keccak256("ADMIN");
     bytes32 public constant OWNER_ROLE = keccak256("OWNER");
 
-    // mapping(address => Balance) public balances;
-    // mapping(bytes32 => GameRoom) private gameRooms;
-
-    constructor(
-        address _edt,
-        address _state,
-        uint256 _fee,
-        uint256 _draw_fee
-    ) Ownable(_msgSender()) {
-        EDT = IERC20(_edt);
-        STATE = IEnigmaDuelState(_state);
-        FEE = _fee;
-        DRAW_FEE = _draw_fee;
-        _grantRole(OWNER_ROLE, _msgSender());
-        _setRoleAdmin(ADMIN_ROLE, OWNER_ROLE);
-        _grantRole(ADMIN_ROLE, _msgSender());
-    }
     function initialize(
         address _state,
         address _edt,
         uint256 _fee,
         uint256 _draw_fee
     ) public initializer {
-        __Ownable_init();
+        __Ownable_init(_msgSender());
         __AccessControl_init();
 
-        state = IEnigmaDuelState(_state);
-        EDT = _edt;
+        STATE = IEnigmaDuelState(_state);
+        EDT = IERC20(_edt);
         FEE = _fee;
         DRAW_FEE = _draw_fee;
 
         _grantRole(OWNER_ROLE, msg.sender);
+        _grantRole(ADMIN_ROLE, _msgSender());
         _setRoleAdmin(ADMIN_ROLE, OWNER_ROLE);
     }
+
     function withdrawCollectedFees(
         uint256 _amount,
         address _dest
@@ -128,7 +117,8 @@ contract EnigmaDuel is IEnigmaDuel, Initializable, OwnableUpgradeable, AccessCon
         emit GameStarted(
             _game_room_init_params.duelist1,
             _game_room_init_params.duelist2,
-            _game_room_init_params.prizePool
+            _game_room_init_params.prizePool,
+            _game_room_key
         );
     }
 
@@ -162,8 +152,7 @@ contract EnigmaDuel is IEnigmaDuel, Initializable, OwnableUpgradeable, AccessCon
             prizeShare
         );
 
-        gameRoom.status = IEnigmaDuelState.GameRoomStatus.Finished;
-        gameRoom.prizePool = 0;
+        STATE.closeGameRoomState(_game_room_key);
 
         bool isWinner1 = _winner == gameRoom.duelist1;
         bool isWinner2 = _winner == gameRoom.duelist2;
@@ -177,7 +166,8 @@ contract EnigmaDuel is IEnigmaDuel, Initializable, OwnableUpgradeable, AccessCon
             STATE.getBalance(gameRoom.duelist1),
             owner_balance,
             prizeShare,
-            isWinner1
+            isWinner1,
+            fee == FEE
         );
         STATE.setBalance(owner(), tmp_bal1);
         STATE.setBalance(gameRoom.duelist1, tmp_bal2);
@@ -185,17 +175,21 @@ contract EnigmaDuel is IEnigmaDuel, Initializable, OwnableUpgradeable, AccessCon
             STATE.getBalance(gameRoom.duelist2),
             owner_balance,
             prizeShare,
-            isWinner2
+            isWinner2,
+            fee == FEE
         );
         STATE.setBalance(owner(), tmp_bal1);
         STATE.setBalance(gameRoom.duelist2, tmp_bal2);
+
         emit GameFinished(
             _winner == address(0)
                 ? IEnigmaDuelState.GameRoomResultStatus.Draw
                 : IEnigmaDuelState.GameRoomResultStatus.Victory,
             fee,
-            _winner,
-            prizeShare
+            gameRoom.duelist1,
+            isWinner1 ? prizeShare : prizeShare * uint8(_game_room_result.status),
+            gameRoom.duelist2,
+            isWinner2 ? prizeShare : prizeShare *  uint8(_game_room_result.status)
         );
     }
 

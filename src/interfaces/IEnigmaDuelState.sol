@@ -41,8 +41,8 @@ interface IEnigmaDuelState {
      * @dev Enum representing the result status of a game room.
      */
     enum GameRoomResultStatus {
-        Draw, // The game ended in a draw.
-        Victory // The game ended in a victory for one of the duelists.
+        Victory, // The game ended in a victory for one of the duelists.
+        Draw // The game ended in a draw.
     }
 
     /**

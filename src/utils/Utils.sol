@@ -20,9 +20,7 @@ library EnigmaUtils {
         uint256 _fee
     ) internal pure returns (uint256 _share) {
         assert(_prize_pool >= _fee);
-        uint256 total_fee = _fee * 2;
-        require(total_fee <= _prize_pool, EnigmaDuelErrors.Underflow());
-        _share = (_prize_pool - total_fee) / 2;
+        _share = _prize_pool  /  2 - _fee;
     }
 
     /**
@@ -49,7 +47,10 @@ library EnigmaUtils {
         uint256 _lock_amount
     ) internal pure returns (IEnigmaDuelState.Balance memory _new_balance) {
         _new_balance = _balance;
-        require(_balance.available >= _lock_amount, EnigmaDuelErrors.Underflow());
+        require(
+            _balance.available >= _lock_amount,
+            EnigmaDuelErrors.Underflow()
+        );
         _new_balance.available -= _lock_amount;
         _new_balance.locked += _lock_amount;
     }
@@ -67,7 +68,8 @@ library EnigmaUtils {
         IEnigmaDuelState.Balance memory _balance,
         IEnigmaDuelState.Balance memory _admin_balance,
         uint256 _unlock_amount,
-        bool is_winner
+        bool is_winner,
+        bool victory
     )
         internal
         pure
@@ -78,19 +80,26 @@ library EnigmaUtils {
     {
         _new_balance = _balance;
         _new_admin_balance = _admin_balance;
-
-        if (is_winner) {
-            uint256 winner_share = _unlock_amount * 2;
-            _new_balance.available += winner_share;
-            _new_balance.total += _unlock_amount;
+        require(
+            _new_balance.locked >= _unlock_amount,
+            EnigmaDuelErrors.Underflow()
+        );
+        if (victory) {
+            if (is_winner) {
+                uint256 winner_share = _unlock_amount + _new_balance.locked;
+                _new_balance.available += winner_share;
+                _new_balance.total += _unlock_amount;
+            } else {
+                _new_balance.total -= _new_balance.locked;
+                _new_balance.available -= _new_balance.locked;
+            }
         } else {
             _new_balance.available += _unlock_amount;
         }
 
-        require(_new_balance.locked >= _unlock_amount, EnigmaDuelErrors.Underflow());
         _new_balance.locked -= _unlock_amount;
 
-        if (_new_balance.locked != 0 && is_winner) {
+        if (_new_balance.locked != 0) {
             _new_admin_balance.total += _new_balance.locked;
             _new_admin_balance.available += _new_balance.locked;
             _new_balance.locked = 0;
