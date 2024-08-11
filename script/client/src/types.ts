@@ -2,9 +2,9 @@ import { BigNumberish } from "ethers";
 
 // Equivalent of the Balance struct in Solidity
 export interface Balance {
-  total: BigNumberish;
-  locked: BigNumberish;
-  available: BigNumberish;
+  total: BigNumberish | Number;
+  locked: BigNumberish| Number;
+  available: BigNumberish| Number ;
 }
 
 // Equivalent of the GameRoomStatus enum in Solidity

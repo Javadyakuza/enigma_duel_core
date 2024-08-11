@@ -2,6 +2,8 @@ import React, { useState } from "react";
 import { ethers } from "ethers";
 import { enigmaDuelClient, Signer } from "./helpers"; // Import the module
 const { ethereum } = window as any;
+import {Balance} from "./types"
+import "./App.css"
 function App() {
   const [depositAmount, setDepositAmount] = useState<number>(0);
   const [withdrawAmount, setWithdrawAmount] = useState<number>(0);
@@ -12,14 +14,8 @@ function App() {
   // Initialize the provider and signer (using ethers.js)
 
   const handleDeposit = async () => {
-    let signer: Signer;
-
-    let provider;
-
-    provider = new ethers.BrowserProvider(window.ethereum);
-
-    signer = await provider.getSigner();
-
+    const provider = new ethers.BrowserProvider(window.ethereum);
+    const signer = await provider.getSigner();
     const enigmaDuel = enigmaDuelClient(provider, signer);
     try {
       const response = await enigmaDuel.depositEDT(depositAmount);
@@ -48,7 +44,12 @@ function App() {
     const signer = await provider.getSigner();
     const enigmaDuel = enigmaDuelClient(provider, signer);
     try {
-      const balance = await enigmaDuel.getUserbalance(userAddress);
+      let balance = await enigmaDuel.getUserbalance(userAddress);
+      balance = {
+        total: Number(balance.total), 
+        locked: Number(balance.locked),
+        available: Number(balance.available)
+      }
       setResult(`User Balance: ${JSON.stringify(balance, null, 2)}`);
     } catch (error) {
       console.error(error);
@@ -109,7 +110,7 @@ function App() {
   };
 
   return (
-    <div>
+    <div className="container">
       <h1>Enigma Duel Client</h1>
 
       <div>
@@ -146,7 +147,7 @@ function App() {
       </div>
 
       <div>
-        <h2>Get Game Room</h2>
+        <h2>Get Game Room, (can't start a game room from client, must be started already from the server)</h2>
         <input
           type="text"
           value={gameRoomKey}

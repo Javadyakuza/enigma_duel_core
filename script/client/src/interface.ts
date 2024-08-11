@@ -6,14 +6,14 @@ export interface IEnigmaDuelClient {
    * @param depositAmount The amount of EDT tokens to deposit.
    * @returns The new balance of the user.
    */
-  depositEDT(depositAmount: BigNumberish): Promise<BigNumberish>;
+  depositEDT(depositAmount: BigNumberish): Promise<BigNumberish | Number>;
 
   /**
    * Withdraws EDT tokens from the contract.
    * @param withdrawAmount The amount of EDT tokens to withdraw.
    * @returns The new balance of the user.
    */
-  withdrawEDT(withdrawAmount: BigNumberish): Promise<BigNumberish>;
+  withdrawEDT(withdrawAmount: BigNumberish): Promise<BigNumberish | Number>;
 
   /**
    * Returns the balance structure of a user.
