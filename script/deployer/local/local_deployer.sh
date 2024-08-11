@@ -19,4 +19,6 @@ cast send  "${eds_addr:13}" "function initialize(address)" "${edp_addr:13}" --rp
 
 echo -e '{\n  "EnigmaDuel": "'"${ed_addr:13}"'",\n  "EnigmaDuelState": "'"${eds_addr:13}"'",\n  "EnigmaDuelToken": "'"${edt_addr:13}"'",\n  "EnigmaDuelProxyAdmin": "'"${edpa_addr:13}"'",\n  "EnigmaDuelProxy": "'"${edp_addr:13}"'"\n}' > ./script/deployer/local/addresses.json
 
+echo -e 'export const addresses = {\n  "EnigmaDuel": "'"${ed_addr:13}"'",\n  "EnigmaDuelState": "'"${eds_addr:13}"'",\n  "EnigmaDuelToken": "'"${edt_addr:13}"'",\n  "EnigmaDuelProxyAdmin": "'"${edpa_addr:13}"'",\n  "EnigmaDuelProxy": "'"${edp_addr:13}"'"\n}' > ./script/deployer/local/constants.ts
+
 rm -rf  ./script/deployer/local/ed  ./script/deployer/local/eds  ./script/deployer/local/edt  ./script/deployer/local/edpa  ./script/deployer/local/edp ./script/deployer/local/data 
