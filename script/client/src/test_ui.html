@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Enigma Duel Client</title>
+</head>
+<body>
+  <h1>Enigma Duel Client</h1>
+
+  <div>
+    <h2>Deposit EDT Tokens</h2>
+    <input type="number" id="depositAmount" placeholder="Deposit Amount">
+    <button onclick="depositEDT()">Deposit</button>
+    <p id="depositResult"></p>
+  </div>
+
+  <div>
+    <h2>Withdraw EDT Tokens</h2>
+    <input type="number" id="withdrawAmount" placeholder="Withdraw Amount">
+    <button onclick="withdrawEDT()">Withdraw</button>
+    <p id="withdrawResult"></p>
+  </div>
+
+  <div>
+    <h2>Get User Balance</h2>
+    <input type="text" id="userAddress" placeholder="User Address">
+    <button onclick="getUserBalance()">Get Balance</button>
+    <pre id="balanceResult"></pre>
+  </div>
+
+  <div>
+    <h2>Get Game Room</h2>
+    <input type="text" id="gameRoomKey" placeholder="Game Room Key">
+    <button onclick="getGameRoom()">Get Game Room</button>
+    <pre id="gameRoomResult"></pre>
+  </div>
+
+  <div>
+    <h2>Get Fees</h2>
+    <button onclick="getFEE()">Get Victory Fee</button>
+    <p id="feeResult"></p>
+    <button onclick="getDRAW_FEE()">Get Draw Fee</button>
+    <p id="drawFeeResult"></p>
+  </div>
+
+  <div>
+    <h2>Get EDT Token Address</h2>
+    <button onclick="getEDT()">Get EDT Address</button>
+    <p id="edtAddressResult"></p>
+  </div>
+  <script src="./helpers.ts"></script>
+  <script>
+    
+    // Initialize the provider and signer (using ethers.js)
+    const provider = new ethers.BrowserProvider(); // Your provider
+    const signer = provider.getSigner(); // Assume the signer is already connected and authorized
+
+    // Initialize the EnigmaDuelClient using the functional approach
+    const enigmaDuel = enigmaDuelClient(provider, signer);
+
+    async function depositEDT() {
+      const depositAmount = document.getElementById('depositAmount').value;
+      const result = await enigmaDuel.depositEDT(depositAmount);
+      document.getElementById('depositResult').innerText = `New Balance: ${result}`;
+    }
+
+    async function withdrawEDT() {
+      const withdrawAmount = document.getElementById('withdrawAmount').value;
+      const result = await enigmaDuel.withdrawEDT(withdrawAmount);
+      document.getElementById('withdrawResult').innerText = `New Balance: ${result}`;
+    }
+
+    async function getUserBalance() {
+      const userAddress = document.getElementById('userAddress').value;
+      const result = await enigmaDuel.getUserBalance(userAddress);
+      document.getElementById('balanceResult').innerText = JSON.stringify(result, null, 2);
+    }
+
+    async function getGameRoom() {
+      const gameRoomKey = document.getElementById('gameRoomKey').value;
+      const result = await enigmaDuel.getGameRoom(gameRoomKey);
+      document.getElementById('gameRoomResult').innerText = JSON.stringify(result, null, 2);
+    }
+
+    async function getFEE() {
+      const result = await enigmaDuel.getFEE();
+      document.getElementById('feeResult').innerText = `Victory Fee: ${result}`;
+    }
+
+    async function getDRAW_FEE() {
+      const result = await enigmaDuel.getDRAW_FEE();
+      document.getElementById('drawFeeResult').innerText = `Draw Fee: ${result}`;
+    }
+
+    async function getEDT() {
+      const result = await enigmaDuel.getEDT();
+      document.getElementById('edtAddressResult').innerText = `EDT Token Address: ${result}`;
+    }
+  </script>
+</body>
+</html>
