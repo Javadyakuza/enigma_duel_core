@@ -11,19 +11,15 @@ import {Math} from "@openzeppelin-contracts/utils/math/Math.sol";
 import {Structures} from "./libs/Structures.sol";
 import {EnigmaUtils} from "./utils/Utils.sol";
 import {IEnigmaDuelState} from "./interfaces/IEnigmaDuelState.sol";
-import "@openzeppelin-contracts-upgradeable/proxy/utils/Initializable.sol";
-import "@openzeppelin-contracts-upgradeable/access/OwnableUpgradeable.sol";
-import "@openzeppelin-contracts-upgradeable/access/AccessControlUpgradeable.sol";
+import "@openzeppelin/contracts/proxy/utils/Initializable.sol";
+import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
+
 /**
  * @title EnigmaDuel
  * @dev A contract for managing duels, handling fees, and tracking balances in the Enigma Duel game.
  */
-contract EnigmaDuel is
-    IEnigmaDuel,
-    Initializable,
-    OwnableUpgradeable,
-    AccessControlUpgradeable
-{
+contract EnigmaDuel is IEnigmaDuel, Initializable, OwnableUpgradeable, AccessControlUpgradeable {
     using SafeERC20 for IERC20;
     using Math for uint256;
 
@@ -34,25 +30,40 @@ contract EnigmaDuel is
     bytes32 public constant ADMIN_ROLE = keccak256("ADMIN");
     bytes32 public constant OWNER_ROLE = keccak256("OWNER");
 
+    // mapping(address => Balance) public balances;
+    // mapping(bytes32 => GameRoom) private gameRooms;
+
+    constructor(
+        address _edt,
+        address _state,
+        uint256 _fee,
+        uint256 _draw_fee
+    ) Ownable(_msgSender()) {
+        EDT = IERC20(_edt);
+        STATE = IEnigmaDuelState(_state);
+        FEE = _fee;
+        DRAW_FEE = _draw_fee;
+        _grantRole(OWNER_ROLE, _msgSender());
+        _setRoleAdmin(ADMIN_ROLE, OWNER_ROLE);
+        _grantRole(ADMIN_ROLE, _msgSender());
+    }
     function initialize(
         address _state,
         address _edt,
         uint256 _fee,
         uint256 _draw_fee
     ) public initializer {
-        __Ownable_init(_msgSender());
+        __Ownable_init();
         __AccessControl_init();
 
-        STATE = IEnigmaDuelState(_state);
-        EDT = IERC20(_edt);
+        state = IEnigmaDuelState(_state);
+        EDT = _edt;
         FEE = _fee;
         DRAW_FEE = _draw_fee;
 
         _grantRole(OWNER_ROLE, msg.sender);
-        _grantRole(ADMIN_ROLE, _msgSender());
         _setRoleAdmin(ADMIN_ROLE, OWNER_ROLE);
     }
-
     function withdrawCollectedFees(
         uint256 _amount,
         address _dest
